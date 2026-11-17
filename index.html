@@ -216,11 +216,16 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const OVERPASS = [
-  "https://overpass-api.de/api/interpreter",
-  "https://overpass.private.coffee/api/interpreter",
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-];
+const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+// 每種類型要問 Nominatim 的關鍵字（Nominatim 會把它當成「類別搜尋」）
+const KIND_QUERY = { restaurant: "restaurant", fast_food: "fast food", cafe: "cafe" };
+// 料理類型中文對照，讓「麵」「日式」「火鍋」等關鍵字也搜得到
+const CUISINE_ZH = { chinese: "中式 中菜", taiwanese: "台式 台菜", japanese: "日式 日本料理", korean: "韓式 韓國料理", thai: "泰式 泰國菜",
+  vietnamese: "越南", italian: "義式 義大利麵", pizza: "披薩", burger: "漢堡", sushi: "壽司", ramen: "拉麵 麵", noodle: "麵",
+  noodles: "麵", rice: "飯", hot_pot: "火鍋", barbecue: "燒烤", bbq: "燒烤", vegetarian: "素食", vegan: "素食", curry: "咖哩",
+  coffee_shop: "咖啡", cake: "蛋糕 甜點", dessert: "甜點", bubble_tea: "手搖飲 飲料", tea: "茶 飲料", sandwich: "三明治",
+  breakfast: "早餐 早午餐", brunch: "早午餐", steak_house: "牛排", dumpling: "水餃 餃子", seafood: "海鮮", indian: "印度",
+  american: "美式", french: "法式", western: "西式", chicken: "雞", fried_chicken: "炸雞", beef_bowl: "丼飯 牛丼", donburi: "丼飯" };
 const COLORS = ["#e8590c","#f59f00","#2f9e44","#1971c2","#9c36b5","#c2255c","#0c8599","#5c940d","#e67700","#3b5bdb","#d6336c","#087f5b"];
 const KIND_LABEL = { restaurant: "餐廳", fast_food: "速食/小吃", cafe: "咖啡廳", food_court: "美食街", manual: "自己加的" };
 const DEMO = ["牛肉麵","滷肉飯","日式拉麵","韓式拌飯","麥當勞","越南河粉","咖哩飯","水餃","壽司","便當","義大利麵","泰式打拋豬"];
@@ -274,8 +279,7 @@ async function geocode() {
   if (!q) return;
   setStatus("搜尋地點中…");
   try {
-    const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=zh-TW&q=" + encodeURIComponent(q));
-    const d = await r.json();
+    const d = await nomi({ q, limit: 1, countrycodes: "tw" }).then(d => d.length ? d : nomi({ q, limit: 1 }));
     if (!d.length) return setStatus("找不到這個地點，換個寫法試試。");
     setCenter([+d[0].lat, +d[0].lon], 16);
     setStatus("找到：" + d[0].display_name);
@@ -289,21 +293,26 @@ $("keyword").onkeydown = e => { if (e.key === "Enter") searchShops(); };
 
 // 搜尋結果快取：同一位置、同一範圍（或更大範圍）不再重新下載
 const cache = [];
-let raw = null, searchToken = 0;
-const AMENITIES = "restaurant|fast_food|cafe|food_court";
+let raw = null, searchToken = 0, lastNomi = 0;
 
-function fetchOverpass(q) {
-  // 同時問所有伺服器，誰先回就用誰，其餘取消
-  const ctrls = OVERPASS.map(() => new AbortController());
-  const timer = setTimeout(() => ctrls.forEach(c => c.abort()), 15000);
-  return Promise.any(OVERPASS.map((url, i) =>
-    fetch(url + "?data=" + encodeURIComponent(q), { signal: ctrls[i].signal }).then(async r => {
-      if (!r.ok) throw new Error(r.status);
-      const d = await r.json();
-      ctrls.forEach((c, j) => j !== i && c.abort());
-      return d;
-    })
-  )).finally(() => clearTimeout(timer));
+// Nominatim 使用規範：每秒最多 1 次請求，這裡自動排隊
+async function nomi(params) {
+  const wait = lastNomi + 1100 - Date.now();
+  lastNomi = Date.now() + Math.max(0, wait);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  const ctrl = new AbortController(), t = setTimeout(() => ctrl.abort(), 12000);
+  try {
+    const r = await fetch(NOMINATIM + "?" + new URLSearchParams({ format: "jsonv2", "accept-language": "zh-TW", ...params }), { signal: ctrl.signal });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } finally { clearTimeout(t); }
+}
+
+function toShop(e) {
+  const lat = +e.lat, lng = +e.lon, a = e.address || {}, x = e.extratags || {};
+  return { id: e.osm_type + e.osm_id, name: e.name || (e.display_name || "").split(",")[0], lat, lng, kind: e.type,
+    cuisine: x.cuisine || "", addr: [a.road, a.house_number && a.house_number + "號"].filter(Boolean).join(""),
+    hours: x.opening_hours || "", d: dist(center, [lat, lng]) };
 }
 
 async function searchShops() {
@@ -314,41 +323,61 @@ async function searchShops() {
   if (hit) { raw = { list: hit.list, radius }; return applyFilters(true); }
 
   const my = ++searchToken, t0 = Date.now();
+  const dLat = radius / 111320, dLng = radius / (111320 * Math.cos(lat * Math.PI / 180));
+  const viewbox = [lng - dLng, lat + dLat, lng + dLng, lat - dLat].map(v => v.toFixed(5)).join(",");
+  const base = { viewbox, bounded: 1, limit: 40, addressdetails: 1, extratags: 1 };
+  const byId = new Map();
+  raw = { list: [], radius };
   $("search").disabled = true;
   setStatus("搜尋附近店家中…");
-  const tick = setInterval(() => setStatus(`搜尋附近店家中…（${Math.round((Date.now() - t0) / 1000)} 秒）`), 1000);
-  const area = `(around:${radius},${lat},${lng})`, f = `["amenity"~"^(${AMENITIES})$"]["name"]`;
-  const q = `[out:json][timeout:12];(node${f}${area};way${f}${area};);out center tags qt;`;
-  let data = null;
-  try { data = await fetchOverpass(q); } catch {}
-  clearInterval(tick);
-  if (my !== searchToken) return; // 已有更新的搜尋
-  $("search").disabled = false;
-  if (!data) return setStatus("店家資料服務忙碌中，請再按一次搜尋，或在下方自己加店家。");
 
-  const list = data.elements.map(e => {
-    const la = e.lat ?? e.center?.lat, ln = e.lon ?? e.center?.lon, t = e.tags || {};
-    return { name: t["name:zh"] || t.name, lat: la, lng: ln, kind: t.amenity, cuisine: t.cuisine || "",
-      addr: [t["addr:city"], t["addr:district"], t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(""),
-      hours: t.opening_hours || "", d: dist(center, [la, ln]) };
-  }).filter(s => s.lat).sort((a, b) => a.d - b.d);
-  cache.push({ lat, lng, radius, list });
-  raw = { list, radius };
-  applyFilters(true, ((Date.now() - t0) / 1000).toFixed(1));
+  // 依序查詢：餐廳 → 速食/小吃 → 咖啡廳（超過 40 家再多查一頁）
+  const jobs = Object.values(KIND_QUERY).map(q => ({ q, page: 1 }));
+  let ok = 0;
+  while (jobs.length) {
+    const job = jobs.shift();
+    let res;
+    try { res = await nomi({ ...base, q: job.q, exclude_place_ids: job.exclude || "" }); ok++; }
+    catch {
+      // 伺服器偶爾忙碌，最多重試 2 次
+      if ((job.tries = (job.tries || 0) + 1) <= 2) { await new Promise(r => setTimeout(r, 1500 * job.tries)); jobs.unshift(job); }
+      if (my !== searchToken) return;
+      continue;
+    }
+    if (my !== searchToken) return; // 已有更新的搜尋
+    res.filter(e => e.category === "amenity" && KIND_LABEL[e.type]).forEach(e => { const s = toShop(e); if (s.d <= radius) byId.set(s.id, s); });
+    if (res.length === 40 && job.page < 2) jobs.unshift({ q: job.q, page: job.page + 1, exclude: [...(job.exclude ? job.exclude.split(",") : []), ...res.map(e => e.place_id)].join(",") });
+    raw.list = [...byId.values()].sort((a, b) => a.d - b.d);
+    applyFilters(ok === 1, null, jobs.length > 0);
+  }
+  if (my !== searchToken) return;
+  $("search").disabled = false;
+  if (!ok) { raw = null; return setStatus("店家資料服務暫時連不上，請稍後再按一次搜尋，或在下方自己加店家。"); }
+  cache.push({ lat, lng, radius, list: raw.list });
+  applyFilters(false, ((Date.now() - t0) / 1000).toFixed(1));
 }
 
 // 類型、關鍵字、範圍縮小都在本機篩選，不用重新上網搜尋
-function applyFilters(fit, secs) {
+function matchKeyword(s, kw) {
+  if (!kw) return true;
+  const text = [s.name, s.cuisine, KIND_LABEL[s.kind] || "",
+    ...s.cuisine.split(/[;,]/).map(c => CUISINE_ZH[c.trim()] || "")].join(" ").toLowerCase();
+  return kw.split(/\s+/).some(k => text.includes(k));
+}
+function applyFilters(fit, secs, more) {
   if (!raw) return;
   const kind = $("kind").value.split("|"), kw = $("keyword").value.trim().toLowerCase(), radius = +$("radius").value;
   const seen = new Set();
   const manual = shops.filter(s => s.kind === "manual");
-  shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && (!kw || (s.name + s.cuisine).toLowerCase().includes(kw)))
+  shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && matchKeyword(s, kw))
     .filter(s => !seen.has(s.name) && seen.add(s.name))
     .concat(manual.filter(s => !seen.has(s.name)));
   refresh(fit);
   const n = shops.length - manual.length;
-  setStatus(n ? `找到 ${n} 家店${secs ? `（${secs} 秒）` : ""}！選個遊戲開始玩吧。` : "這附近沒找到符合的店家，試試放大範圍或換關鍵字。");
+  if (more) return setStatus(`已找到 ${n} 家，繼續找更多中…`);
+  setStatus(n ? `找到 ${n} 家店${secs ? `（${secs} 秒）` : ""}！選個遊戲開始玩吧。`
+    : raw.list.length ? `附近有 ${raw.list.length} 家店，但沒有符合「${kw || $("kind").selectedOptions[0].text}」的，換個關鍵字試試。`
+    : "這附近沒找到店家，試試放大範圍。");
 }
 $("kind").onchange = () => applyFilters(false);
 $("keyword").oninput = () => applyFilters(false);

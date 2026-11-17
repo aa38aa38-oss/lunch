@@ -21,5 +21,5 @@
 > 註：「使用我的位置」需在 HTTPS（例如 GitHub Pages）或 localhost 下才能使用。
 
 ## 資料來源
-- 店家資料：OpenStreetMap（透過 Overpass API）
+- 店家資料：OpenStreetMap（透過 Nominatim，每秒 1 次查詢，結果會逐步顯示）
 - 地址搜尋：Nominatim
