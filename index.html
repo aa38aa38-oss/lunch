@@ -30,6 +30,10 @@
   button { cursor: pointer; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
   button:disabled { opacity: .5; cursor: not-allowed; }
+  #search.busy { opacity: 1; cursor: progress; background: #f08c4b; border-color: #f08c4b; }
+  .spinner { display: inline-block; width: 1em; height: 1em; margin-right: 6px; vertical-align: -2px;
+    border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg) } }
   #map { height: 400px; border-radius: 12px; margin-top: 10px; z-index: 0; }
   #status { margin-top: 8px; font-size: .9rem; color: var(--muted); min-height: 1.2em; }
   h2 { margin: 0 0 8px; font-size: 1.15rem; }
@@ -352,9 +356,10 @@ $("radius").onchange = () => { rangeCircle.setRadius(+$("radius").value); if (ra
 $("locate").onclick = () => {
   if (!navigator.geolocation) return setStatus("這個瀏覽器不支援定位，請改用輸入地址。");
   setStatus("定位中…");
+  setSearching(true, "定位中，請稍候…");
   navigator.geolocation.getCurrentPosition(
     p => { setCenter([p.coords.latitude, p.coords.longitude], 16); setStatus("定位成功！"); searchShops(); },
-    () => setStatus("無法取得位置（可能未授權），請改輸入地址或點地圖。"),
+    () => { setSearching(false); setStatus("無法取得位置（可能未授權），請改輸入地址或點地圖。"); },
     { enableHighAccuracy: true, timeout: 10000 }
   );
 };
@@ -363,17 +368,24 @@ async function geocode() {
   const q = $("place").value.trim();
   if (!q) return;
   setStatus("搜尋地點中…");
+  setSearching(true, "定位中，請稍候…");
   try {
     const d = await nomi({ q, limit: 1, countrycodes: "tw" }).then(d => d.length ? d : nomi({ q, limit: 1 }));
-    if (!d.length) return setStatus("找不到這個地點，換個寫法試試。");
+    if (!d.length) { setSearching(false); return setStatus("找不到這個地點，換個寫法試試。"); }
     setCenter([+d[0].lat, +d[0].lon], 16);
     setStatus("找到：" + d[0].display_name);
     searchShops();
-  } catch { setStatus("地點搜尋失敗，請稍後再試。"); }
+  } catch { setSearching(false); setStatus("地點搜尋失敗，請稍後再試。"); }
 }
 $("go").onclick = geocode;
 $("place").onkeydown = e => { if (e.key === "Enter") geocode(); };
 $("search").onclick = () => searchShops();
+// 搜尋中：按鈕顯示轉圈圈和進度，讓人知道正在找
+function setSearching(on, text) {
+  const b = $("search");
+  b.disabled = on; b.classList.toggle("busy", on);
+  b.innerHTML = on ? `<span class="spinner"></span>${text || "搜尋中，請稍候…"}` : "搜尋附近店家";
+}
 $("keyword").onkeydown = e => { if (e.key === "Enter") searchShops(); };
 
 // 搜尋結果快取：同一位置、同一範圍（或更大範圍）不再重新下載
@@ -409,7 +421,7 @@ async function searchShops() {
   rangeCircle.setRadius(radius);
   const lat = +center[0].toFixed(4), lng = +center[1].toFixed(4);
   const hit = cache.find(c => c.lat === lat && c.lng === lng && c.radius >= radius);
-  if (hit) { raw = { list: hit.list, radius }; return applyFilters(true); }
+  if (hit) { setSearching(false); raw = { list: hit.list, radius }; return applyFilters(true); }
 
   const my = ++searchToken, t0 = Date.now();
   const dLat = radius / 111320, dLng = radius / (111320 * Math.cos(lat * Math.PI / 180));
@@ -417,7 +429,7 @@ async function searchShops() {
   const base = { viewbox, bounded: 1, limit: 40, addressdetails: 1, extratags: 1, namedetails: 1 };
   const byId = new Map();
   raw = { list: [], radius };
-  $("search").disabled = true;
+  setSearching(true);
   setStatus("搜尋附近店家中…");
 
   // 依序查詢：餐廳 → 速食/小吃 → 咖啡廳（超過 40 家再多查一頁）
@@ -440,7 +452,7 @@ async function searchShops() {
     applyFilters(ok === 1, null, jobs.length > 0);
   }
   if (my !== searchToken) return;
-  $("search").disabled = false;
+  setSearching(false);
   if (!ok) { raw = null; return setStatus("店家資料服務暫時連不上，請稍後再按一次搜尋，或在下方自己加店家。"); }
   cache.push({ lat, lng, radius, list: raw.list });
   applyFilters(false, ((Date.now() - t0) / 1000).toFixed(1));
@@ -469,7 +481,7 @@ function applyFilters(fit, secs, more) {
     .concat(manual.filter(s => !raw.list.some(r => r.name === s.name)));
   refresh(fit);
   const n = shops.length - manual.length;
-  if (more) return setStatus(`已找到 ${n} 家，繼續找更多中…`);
+  if (more) { setSearching(true, `已找到 ${n} 家，還在找…`); return setStatus(`已找到 ${n} 家，繼續找更多中…`); }
   setStatus(n ? `找到 ${n} 家店${secs ? `（${secs} 秒）` : ""}！選個遊戲開始玩吧。`
     : raw.list.length ? `附近有 ${raw.list.length} 家店，但沒有符合條件（${[kw, $("kind").value.includes("|") ? "" : $("kind").selectedOptions[0].text, band ? $("price").selectedOptions[0].text.replace(/💰/g, "").trim() : ""].filter(Boolean).join("、")}）的，換個條件試試。`
     : "這附近沒找到店家，試試放大範圍。");
