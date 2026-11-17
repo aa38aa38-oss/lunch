@@ -72,18 +72,36 @@
   .shake { animation: shake .4s; }
   @keyframes shake { 0%,100% { transform: translateX(0) } 20%,60% { transform: translateX(-8px) } 40%,80% { transform: translateX(8px) } }
 
-  /* dice */
-  .dice-box { display: flex; justify-content: center; }
-  .die { width: 120px; height: 120px; border-radius: 22px; background: #fff; border: 2px solid #ddd;
-    box-shadow: 0 6px 14px rgba(0,0,0,.18); display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
-    padding: 16px; gap: 4px; }
-  .die i { border-radius: 50%; background: transparent; }
+  /* dice cup 骰盅 */
+  .cup-stage { position: relative; width: 250px; height: 210px; margin: 70px auto 0; max-width: 100%; }
+  .tray { position: absolute; left: 0; right: 0; bottom: 0; height: 96px; border-radius: 50%;
+    background: radial-gradient(ellipse at 50% 40%, #9a6a44, #5b3418 70%); box-shadow: 0 10px 18px rgba(0,0,0,.35), inset 0 -6px 0 rgba(0,0,0,.25); }
+  .dice3 { position: absolute; left: 50%; bottom: 30px; transform: translateX(-50%); display: flex; gap: 8px; }
+  .die { width: 54px; height: 54px; border-radius: 11px; background: #fff; border: 1px solid #ddd;
+    box-shadow: 0 3px 6px rgba(0,0,0,.3); display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); padding: 7px; gap: 2px; }
+  .die:nth-child(1) { transform: rotate(-8deg) translateY(4px); }
+  .die:nth-child(3) { transform: rotate(10deg) translateY(-3px); }
+  .die i { border-radius: 50%; }
   .die i.d { background: #222; }
-  .die.one i.d { background: #d6336c; }
-  .die.rolling { animation: roll .6s linear infinite; }
-  @keyframes roll { 0% { transform: rotate(0) } 25% { transform: rotate(25deg) translateY(-8px) } 75% { transform: rotate(-25deg) translateY(-4px) } 100% { transform: rotate(0) } }
+  .die.one i.d, .die.four i.d { background: #d6336c; }
+  .cup { position: absolute; left: 50%; bottom: 20px; width: 196px; height: 170px; margin-left: -98px; cursor: pointer;
+    border-radius: 50% 50% 16px 16px / 62% 62% 16px 16px;
+    background: linear-gradient(90deg, #6b1414, #b52b2b 35%, #e8554a 52%, #a32222 70%, #5e1010);
+    box-shadow: inset 0 -12px 0 rgba(0,0,0,.25), 0 8px 16px rgba(0,0,0,.35);
+    transition: transform .7s cubic-bezier(.3,1.25,.5,1), opacity .6s; z-index: 2; }
+  .cup::before { content: ""; position: absolute; top: -16px; left: 50%; width: 40px; height: 24px; margin-left: -20px;
+    border-radius: 50% 50% 6px 6px; background: linear-gradient(90deg, #8a6508, #e3b23c, #8a6508); }
+  .cup::after { content: "福"; position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%);
+    width: 54px; height: 54px; border-radius: 50%; border: 3px solid #e3b23c; color: #e3b23c;
+    font: 700 30px/48px serif; text-align: center; }
+  .cup.open { transform: translate(40px, -175px) rotate(18deg); opacity: .0; pointer-events: none; }
+  .cup.shake { animation: cupShake .12s ease-in-out 10 alternate; }
+  @keyframes cupShake { from { transform: translate(-12px, -14px) rotate(-8deg) } to { transform: translate(12px, -4px) rotate(8deg) } }
+  #cupMsg { text-align: center; font-size: 1.15rem; font-weight: 700; min-height: 1.5em; margin-top: 12px; }
   .dice-list { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 6px; }
   .dice-list li { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); }
+  .dice-list li .sums { margin-left: auto; font-size: .78rem; color: var(--muted); white-space: nowrap; }
+  .dice-list li.hit .sums, .dice-list li.hit .branch { color: #fff; }
   .dice-list li b { font-size: 1.5rem; line-height: 1; }
   .dice-list li.hit { background: var(--accent); color: #fff; border-color: var(--accent); }
 
@@ -100,6 +118,7 @@
   .pcard .front { background: #fff; color: #222; transform: rotateY(180deg); border: 1px solid #ccc; }
   .pcard .front .v { font-size: 1.5rem; font-weight: 700; line-height: 1; }
   .pcard .front .v.red { color: #d6336c; }
+  .pcard .front .b { font-size: .62rem; color: #868e96; text-align: center; margin-top: 2px; }
   .pcard .front .n { font-size: .7rem; text-align: center; margin-top: 4px; word-break: break-all; line-height: 1.15; }
   .pcard.win .front { box-shadow: 0 0 0 4px var(--accent-2), 0 0 18px var(--accent-2); }
   .pcard.lose { opacity: .55; }
@@ -125,6 +144,8 @@
   .price.p2 { background: #fff3bf; color: #a35d00; }
   .price.p3 { background: #ffe3e3; color: #c92a2a; }
   .price.p0 { background: var(--bg); color: var(--muted); border: 1px solid var(--line); font-weight: 400; }
+  .branch { font-size: .8rem; font-weight: 400; color: var(--muted); margin-left: 6px; white-space: nowrap; }
+  #result .branch { font-size: .85rem; }
   .tag { display: inline-block; font-size: .75rem; padding: 1px 6px; border-radius: 6px;
     background: var(--bg); border: 1px solid var(--line); margin-right: 4px; }
 </style>
@@ -194,10 +215,18 @@
     </div>
 
     <div class="game" id="g-dice">
-      <p class="hint">每家店對應一個點數，擲到幾點吃哪家！</p>
-      <div class="dice-box"><div class="die" id="die"></div></div>
+      <p class="hint">先搖骰盅，再請朋友開盅！三顆骰子的<b>點數總和</b>決定吃哪家（每家機率一樣）。</p>
+      <div class="cup-stage">
+        <div class="tray"></div>
+        <div class="dice3" id="dice3"></div>
+        <div class="cup" id="cup" title="開盅"></div>
+      </div>
+      <div id="cupMsg"></div>
+      <div class="row">
+        <button id="shake" class="primary">🥤 搖骰盅</button>
+        <button id="openCup">🫳 開盅！</button>
+      </div>
       <ul class="dice-list" id="diceList"></ul>
-      <div class="row"><button id="roll" class="primary">擲骰子！</button></div>
     </div>
 
     <div class="game" id="g-cards">
@@ -365,9 +394,12 @@ async function nomi(params) {
 
 function toShop(e) {
   const lat = +e.lat, lng = +e.lon, a = e.address || {}, x = e.extratags || {};
+  const nd = e.namedetails || {};
   const name = e.name || (e.display_name || "").split(",")[0], cuisine = x.cuisine || "";
-  return { id: e.osm_type + e.osm_id, name, lat, lng, kind: e.type, cuisine,
-    addr: [a.road, a.house_number && a.house_number + "號"].filter(Boolean).join(""),
+  const addr = [a.road, a.house_number && a.house_number + "號"].filter(Boolean).join("");
+  return { id: e.osm_type + e.osm_id, name, lat, lng, kind: e.type, cuisine, addr,
+    branch: nd["branch:zh"] || nd.branch || x["branch:zh"] || x.branch || "", road: a.road || "",
+    fullAddr: [a.city || a.county, a.suburb || a.city_district || a.town, addr].filter(Boolean).join(""),
     hours: x.opening_hours || "", d: dist(center, [lat, lng]), price: estimatePrice(name, cuisine, e.type) };
 }
 
@@ -381,7 +413,7 @@ async function searchShops() {
   const my = ++searchToken, t0 = Date.now();
   const dLat = radius / 111320, dLng = radius / (111320 * Math.cos(lat * Math.PI / 180));
   const viewbox = [lng - dLng, lat + dLat, lng + dLng, lat - dLat].map(v => v.toFixed(5)).join(",");
-  const base = { viewbox, bounded: 1, limit: 40, addressdetails: 1, extratags: 1 };
+  const base = { viewbox, bounded: 1, limit: 40, addressdetails: 1, extratags: 1, namedetails: 1 };
   const byId = new Map();
   raw = { list: [], radius };
   $("search").disabled = true;
@@ -427,8 +459,8 @@ function applyFilters(fit, secs, more) {
   const manual = shops.filter(s => s.kind === "manual");
   const band = +$("price").value;
   shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && matchKeyword(s, kw) && (!band || priceBand(s.price) === band))
-    .filter(s => !seen.has(s.name) && seen.add(s.name))
-    .concat(manual.filter(s => !seen.has(s.name)));
+    .filter(s => { const k = s.name + "@" + s.lat.toFixed(3) + "," + s.lng.toFixed(3); return !seen.has(k) && seen.add(k); })
+    .concat(manual.filter(s => !raw.list.some(r => r.name === s.name)));
   refresh(fit);
   const n = shops.length - manual.length;
   if (more) return setStatus(`已找到 ${n} 家，繼續找更多中…`);
@@ -441,8 +473,14 @@ $("price").onchange = () => applyFilters(false);
 $("keyword").oninput = () => applyFilters(false);
 
 // ---------- 店家清單 ----------
+// 哪一家分店：OSM 有分店名就用，沒有就用所在路名
+const branchOf = s => s.branch || s.road || "";
+const fullName = s => branchOf(s) ? (s.branch ? `${s.name} ${s.branch}` : `${s.name}（${s.road}）`) : s.name;
+const branchHTML = s => branchOf(s) ? `<span class="branch">📍${esc(s.branch || s.road)}${s.branch ? "" : "附近"}</span>` : "";
+// 用「店名 + 分店 + 完整地址」搜尋，Google 地圖就會直接定位到那一家分店
 function googleLink(s) {
-  const q = s.lat != null ? `${s.name} ${s.lat},${s.lng}` : `${s.name} near ${center[0]},${center[1]}`;
+  const q = s.lat != null ? [s.name, s.branch, s.fullAddr].filter(Boolean).join(" ") || `${s.name} ${s.lat},${s.lng}`
+    : `${s.name} near ${center[0]},${center[1]}`;
   return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
 }
 function navLink(s) {
@@ -462,7 +500,7 @@ function metaHTML(s) {
 function renderList() {
   $("count").textContent = shops.length ? `（${shops.length} 家）` : "";
   $("list").innerHTML = shops.length ? shops.map((s, i) => `<li>
-      <div class="info"><div class="name" data-i="${i}">${esc(s.name)}${priceHTML(s)}</div><div class="meta">${metaHTML(s)}</div></div>
+      <div class="info"><div class="name" data-i="${i}">${esc(s.name)}${branchHTML(s)}${priceHTML(s)}</div><div class="meta">${metaHTML(s)}</div></div>
       ${linksHTML(s)}<button class="del" data-i="${i}" title="移除">✕</button></li>`).join("")
     : `<li class="meta">還沒有店家。搜尋附近店家、自己加，或按「試玩範例店家」。</li>`;
   $("list").querySelectorAll(".name").forEach(el => el.onclick = () => focusShop(shops[+el.dataset.i]));
@@ -474,7 +512,7 @@ function renderMarkers(fit) {
   const geo = shops.filter(s => s.lat != null);
   geo.forEach(s => {
     s.marker = L.marker([s.lat, s.lng]).addTo(shopLayer)
-      .bindPopup(`<b>${esc(s.name)}</b>${priceHTML(s)}<br><small>${metaHTML(s)}</small>${linksHTML(s)}`);
+      .bindPopup(`<b>${esc(fullName(s))}</b>${priceHTML(s)}<br><small>${metaHTML(s)}</small>${linksHTML(s)}`);
   });
   if (fit && geo.length) map.fitBounds(L.latLngBounds([center, ...geo.map(s => [s.lat, s.lng])]).pad(0.1));
 }
@@ -518,7 +556,7 @@ function setupGame() { ({ wheel: setupWheel, rev: setupRev, dice: setupDice, car
 function hideResult() { $("result").style.display = "none"; }
 function showResult(s, title) {
   const el = $("result");
-  el.innerHTML = `<h3>${title || "🎉 今天就吃"}：${esc(s.name)}${priceHTML(s)}</h3><div class="meta">${metaHTML(s)}</div>${linksHTML(s)}
+  el.innerHTML = `<h3>${title || "🎉 今天就吃"}：${esc(fullName(s))}${priceHTML(s)}</h3><div class="meta">${metaHTML(s)}</div>${linksHTML(s)}
     ${s.lat != null ? `<div class="links"><a href="#" id="showOnMap">🗺️ 在地圖上看</a></div>` : ""}`;
   el.style.display = "block";
   if ($("showOnMap")) $("showOnMap").onclick = e => { e.preventDefault(); focusShop(s); };
@@ -627,37 +665,59 @@ $("revFire").onclick = () => {
   }, 700);
 };
 
-// ---------- 🎲 骰子 ----------
+// ---------- 🎲 骰盅 ----------
+// 三顆骰子總和 3~18，用「(總和 - 1) 除以店家數的餘數」對應店家；6 家時每家機率剛好都是 1/6
 const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
-const FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
-let diceShops = [], rolling = false;
-function drawDie(v) {
-  const d = $("die");
-  d.className = "die" + (v === 1 ? " one" : "") + (rolling ? " rolling" : "");
-  d.innerHTML = Array.from({ length: 9 }, (_, i) => `<i class="${PIPS[v].includes(i) ? "d" : ""}"></i>`).join("");
-}
+const NUMS = ["①", "②", "③", "④", "⑤", "⑥"];
+let diceShops = [], cup = { state: "idle", dice: [6, 6, 6], busy: false };
+const dieHTML = v => `<div class="die${v === 1 ? " one" : v === 4 ? " four" : ""}">${Array.from({ length: 9 }, (_, i) => `<i class="${PIPS[v].includes(i) ? "d" : ""}"></i>`).join("")}</div>`;
+const sumsFor = (i, n) => Array.from({ length: 16 }, (_, k) => k + 3).filter(t => (t - 1) % n === i);
 function setupDice() {
   diceShops = pool.slice(0, 6);
-  $("diceList").innerHTML = diceShops.length < 2 ? `<li class="meta">先加入至少 2 家店</li>`
-    : diceShops.map((s, i) => `<li data-i="${i}"><b>${FACES[i + 1]}</b><span>${esc(s.name)}${priceHTML(s)}</span></li>`).join("");
-  $("roll").disabled = diceShops.length < 2;
-  drawDie(6);
+  const n = diceShops.length;
+  $("diceList").innerHTML = n < 2 ? `<li class="meta">先加入至少 2 家店</li>`
+    : diceShops.map((s, i) => `<li data-i="${i}"><b>${NUMS[i]}</b><span>${esc(s.name)}${branchHTML(s)}${priceHTML(s)}</span>
+        <span class="sums">總和 ${sumsFor(i, n).join("、")}</span></li>`).join("");
+  cup = { state: "idle", dice: [6, 6, 6], busy: false };
+  $("dice3").innerHTML = cup.dice.map(dieHTML).join("");
+  $("cup").className = "cup";
+  $("cupMsg").textContent = n < 2 ? "" : "按「搖骰盅」開始！";
+  $("shake").disabled = n < 2; $("openCup").disabled = true;
 }
-$("roll").onclick = () => {
-  if (rolling || diceShops.length < 2) return;
-  rolling = true; $("roll").disabled = true; hideResult();
+$("shake").onclick = () => {
+  if (cup.busy || diceShops.length < 2) return;
+  cup.busy = true; hideResult();
   $("diceList").querySelectorAll("li").forEach(li => li.classList.remove("hit"));
-  const n = diceShops.length, final = 1 + Math.floor(Math.random() * n);
-  let ticks = 0;
-  const iv = setInterval(() => {
-    drawDie(1 + Math.floor(Math.random() * 6));
-    if (++ticks >= 14) {
-      clearInterval(iv); rolling = false; drawDie(final); $("roll").disabled = false;
-      $("diceList").querySelector(`[data-i="${final - 1}"]`).classList.add("hit");
-      showResult(diceShops[final - 1], `🎲 擲出 ${final} 點`);
-    }
-  }, 90);
+  $("shake").disabled = $("openCup").disabled = true;
+  const wasOpen = cup.state === "open";
+  $("cup").className = "cup"; // 蓋回去
+  setTimeout(() => {
+    cup.dice = [0, 0, 0].map(() => 1 + Math.floor(Math.random() * 6));
+    $("dice3").innerHTML = cup.dice.map(dieHTML).join("");
+    $("cup").classList.add("shake");
+    $("cupMsg").textContent = "喀啦喀啦喀啦⋯⋯";
+    setTimeout(() => {
+      $("cup").classList.remove("shake");
+      cup.state = "shaken"; cup.busy = false;
+      $("cupMsg").textContent = "搖好了！誰要來開盅？";
+      $("shake").disabled = false; $("openCup").disabled = false;
+    }, 1250);
+  }, wasOpen ? 650 : 0);
 };
+function openCup() {
+  if (cup.busy || cup.state !== "shaken") return;
+  cup.state = "open";
+  $("cup").classList.add("open");
+  $("openCup").disabled = true;
+  const sum = cup.dice.reduce((a, b) => a + b, 0), i = (sum - 1) % diceShops.length;
+  setTimeout(() => {
+    $("cupMsg").textContent = `${cup.dice.join(" + ")} = ${sum} 點！`;
+    $("diceList").querySelector(`[data-i="${i}"]`).classList.add("hit");
+    showResult(diceShops[i], `🎲 開出 ${sum} 點`);
+  }, 500);
+}
+$("openCup").onclick = openCup;
+$("cup").onclick = openCup;
 
 // ---------- 🃏 撲克牌 ----------
 const SUITS = ["♣", "♦", "♥", "♠"]; // 由小到大
@@ -673,7 +733,7 @@ function setupCards() {
     : hand.map((h, i) => `<div class="pcard" data-i="${i}"><div class="inner">
         <div class="face back">🍴</div>
         <div class="face front"><div class="v ${"♥♦".includes(h.card.s) ? "red" : ""}">${h.card.s}${h.card.r}</div>
-        <div class="n">${esc(short(h.shop.name, 12))}</div></div></div></div>`).join("");
+        <div class="n">${esc(short(h.shop.name, 12))}</div>${branchOf(h.shop) ? `<div class="b">${esc(short(branchOf(h.shop), 8))}</div>` : ""}</div></div></div>`).join("");
   t.querySelectorAll(".pcard").forEach(el => el.onclick = () => flip(+el.dataset.i));
   $("reveal").disabled = hand.length < 2;
 }
