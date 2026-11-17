@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>午餐轉盤</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    --bg: #fff8f0; --card: #ffffff; --ink: #2b2118; --muted: #7a6a5c;
+    --accent: #e8590c; --accent-2: #f59f00; --line: #ecdccb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1c1712; --card: #2a221b; --ink: #f5ebe0; --muted: #b8a797; --line: #3d3228; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; }
+  header { padding: 16px; text-align: center; }
+  header h1 { margin: 0; font-size: 1.6rem; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
+  main { max-width: 1100px; margin: 0 auto; padding: 0 16px 32px;
+    display: grid; gap: 16px; grid-template-columns: 1fr; }
+  @media (min-width: 900px) { main { grid-template-columns: 1.2fr 1fr; } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .controls input[type=text] { flex: 1 1 180px; min-width: 0; }
+  input, select, button { font: inherit; padding: 8px 10px; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+  button { cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  #map { height: 420px; border-radius: 12px; margin-top: 10px; z-index: 0; }
+  #status { margin-top: 8px; font-size: .9rem; color: var(--muted); min-height: 1.2em; }
+  .wheel-wrap { position: relative; width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: 1; }
+  #wheel { width: 100%; height: 100%; }
+  .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
+    width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent;
+    border-top: 26px solid var(--ink); }
+  .spin-row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+  #result { margin-top: 12px; padding: 12px; border-radius: 12px; border: 2px dashed var(--accent-2); display: none; }
+  #result h3 { margin: 0 0 6px; }
+  .links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .links a { text-decoration: none; padding: 6px 10px; border-radius: 8px; font-size: .9rem;
+    border: 1px solid var(--line); color: var(--ink); }
+  .links a.g { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  #list { list-style: none; padding: 0; margin: 10px 0 0; max-height: 360px; overflow-y: auto; }
+  #list li { padding: 10px 4px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: flex-start; }
+  #list li .info { flex: 1; min-width: 0; }
+  #list li .name { font-weight: 600; cursor: pointer; }
+  #list li .meta { color: var(--muted); font-size: .85rem; }
+  .tag { display: inline-block; font-size: .75rem; padding: 1px 6px; border-radius: 6px;
+    background: var(--bg); border: 1px solid var(--line); margin-right: 4px; }
+  h2 { margin: 0 0 8px; font-size: 1.15rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🍱 午餐轉盤</h1>
+  <p>不知道吃什麼？找附近店家，轉一下讓命運決定！</p>
+</header>
+<main>
+  <section class="card">
+    <h2>📍 地圖與搜尋</h2>
+    <div class="controls">
+      <button id="locate" class="primary">使用我的位置</button>
+      <input id="place" type="text" placeholder="或輸入地址/地標，例如：台北車站">
+      <button id="go">定位</button>
+    </div>
+    <div class="controls" style="margin-top:8px">
+      <label>範圍
+        <select id="radius">
+          <option value="300">300 公尺</option>
+          <option value="500" selected>500 公尺</option>
+          <option value="1000">1 公里</option>
+          <option value="2000">2 公里</option>
+        </select>
+      </label>
+      <label>類型
+        <select id="kind">
+          <option value="restaurant|fast_food|cafe|food_court">全部</option>
+          <option value="restaurant">餐廳</option>
+          <option value="fast_food">速食/小吃</option>
+          <option value="cafe">咖啡廳</option>
+        </select>
+      </label>
+      <input id="keyword" type="text" placeholder="關鍵字篩選，例如：麵、飯、壽司">
+      <button id="search" class="primary">搜尋附近店家</button>
+    </div>
+    <div id="map"></div>
+    <div id="status">提示：也可以直接點地圖設定位置。</div>
+  </section>
+
+  <section class="card">
+    <h2>🎡 午餐轉盤</h2>
+    <div class="wheel-wrap">
+      <div class="pointer"></div>
+      <canvas id="wheel" width="760" height="760"></canvas>
+    </div>
+    <div class="spin-row">
+      <button id="spin" class="primary" disabled>開始轉！</button>
+      <button id="shuffle" disabled>換一批店家</button>
+    </div>
+    <div id="result"></div>
+  </section>
+
+  <section class="card" style="grid-column: 1 / -1">
+    <h2>🏪 附近店家 <span id="count" style="color:var(--muted);font-weight:400;font-size:.9rem"></span></h2>
+    <ul id="list"></ul>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+const COLORS = ["#e8590c","#f59f00","#2f9e44","#1971c2","#9c36b5","#c2255c","#0c8599","#5c940d","#e67700","#3b5bdb","#d6336c","#087f5b"];
+const KIND_LABEL = { restaurant: "餐廳", fast_food: "速食/小吃", cafe: "咖啡廳", food_court: "美食街" };
+
+let center = [25.0478, 121.5170]; // 預設：台北車站
+let shops = [], wheelShops = [], rotation = 0, spinning = false;
+
+const map = L.map("map").setView(center, 16);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
+}).addTo(map);
+const shopLayer = L.layerGroup().addTo(map);
+let meMarker = L.circleMarker(center, { radius: 9, color: "#fff", weight: 3, fillColor: "#1a73e8", fillOpacity: 1 }).addTo(map);
+let rangeCircle = L.circle(center, { radius: 500, color: "#e8590c", weight: 1, fillOpacity: .05 }).addTo(map);
+
+function setStatus(t) { $("status").textContent = t; }
+function setCenter(latlng, zoom) {
+  center = [latlng[0], latlng[1]];
+  meMarker.setLatLng(center);
+  rangeCircle.setLatLng(center).setRadius(+$("radius").value);
+  map.setView(center, zoom || map.getZoom());
+}
+map.on("click", e => { setCenter([e.latlng.lat, e.latlng.lng]); setStatus("已設定位置，按「搜尋附近店家」。"); });
+$("radius").onchange = () => rangeCircle.setRadius(+$("radius").value);
+
+$("locate").onclick = () => {
+  if (!navigator.geolocation) return setStatus("這個瀏覽器不支援定位，請改用輸入地址。");
+  setStatus("定位中…");
+  navigator.geolocation.getCurrentPosition(
+    p => { setCenter([p.coords.latitude, p.coords.longitude], 16); setStatus("定位成功！"); searchShops(); },
+    () => setStatus("無法取得位置（可能未授權），請改輸入地址或點地圖。"),
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+};
+
+async function geocode() {
+  const q = $("place").value.trim();
+  if (!q) return;
+  setStatus("搜尋地點中…");
+  try {
+    const r = await fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=zh-TW&q=" + encodeURIComponent(q));
+    const d = await r.json();
+    if (!d.length) return setStatus("找不到這個地點，換個寫法試試。");
+    setCenter([+d[0].lat, +d[0].lon], 16);
+    setStatus("找到：" + d[0].display_name);
+    searchShops();
+  } catch { setStatus("地點搜尋失敗，請稍後再試。"); }
+}
+$("go").onclick = geocode;
+$("place").onkeydown = e => { if (e.key === "Enter") geocode(); };
+$("search").onclick = () => searchShops();
+$("keyword").onkeydown = e => { if (e.key === "Enter") searchShops(); };
+
+function dist(a, b) {
+  const R = 6371000, toR = x => x * Math.PI / 180;
+  const dLat = toR(b[0] - a[0]), dLng = toR(b[1] - a[1]);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a[0])) * Math.cos(toR(b[0])) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+async function searchShops() {
+  const radius = +$("radius").value, kind = $("kind").value;
+  rangeCircle.setRadius(radius);
+  const q = `[out:json][timeout:25];(nwr["amenity"~"^(${kind})$"]["name"](around:${radius},${center[0]},${center[1]}););out center tags;`;
+  setStatus("搜尋附近店家中…");
+  $("search").disabled = true;
+  let data = null;
+  for (const url of OVERPASS) {
+    try {
+      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q) });
+      if (r.ok) { data = await r.json(); break; }
+    } catch {}
+  }
+  $("search").disabled = false;
+  if (!data) return setStatus("店家資料服務忙碌中，請稍後再試。");
+
+  const kw = $("keyword").value.trim().toLowerCase();
+  shops = data.elements.map(e => {
+    const lat = e.lat ?? e.center?.lat, lng = e.lon ?? e.center?.lon, t = e.tags || {};
+    return { name: t["name:zh"] || t.name, lat, lng, kind: t.amenity, cuisine: t.cuisine || "",
+      addr: [t["addr:city"], t["addr:district"], t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(""),
+      hours: t.opening_hours || "", d: dist(center, [lat, lng]) };
+  }).filter(s => s.lat && (!kw || (s.name + s.cuisine).toLowerCase().includes(kw)))
+    .sort((a, b) => a.d - b.d);
+
+  // 去除同名重複
+  const seen = new Set();
+  shops = shops.filter(s => !seen.has(s.name) && seen.add(s.name));
+
+  renderList(); renderMarkers(); pickWheel();
+  setStatus(shops.length ? `找到 ${shops.length} 家店！` : "這附近沒找到店家，試試放大範圍或換關鍵字。");
+}
+
+function googleLink(s) {
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(`${s.name} ${s.lat},${s.lng}`);
+}
+function navLink(s) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=walking`;
+}
+function esc(t) { return String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function linksHTML(s) {
+  return `<div class="links">
+    <a class="g" href="${googleLink(s)}" target="_blank" rel="noopener">⭐ Google 評價</a>
+    <a href="${navLink(s)}" target="_blank" rel="noopener">🚶 導航過去</a></div>`;
+}
+function metaHTML(s) {
+  return `<span class="tag">${KIND_LABEL[s.kind] || s.kind}</span>${s.cuisine ? `<span class="tag">${esc(s.cuisine)}</span>` : ""}
+    約 ${Math.round(s.d)} 公尺${s.addr ? " · " + esc(s.addr) : ""}${s.hours ? "<br>營業時間：" + esc(s.hours) : ""}`;
+}
+
+function renderList() {
+  $("count").textContent = shops.length ? `（${shops.length} 家）` : "";
+  $("list").innerHTML = shops.map((s, i) => `<li>
+      <div class="info"><div class="name" data-i="${i}">${esc(s.name)}</div><div class="meta">${metaHTML(s)}</div></div>
+      ${linksHTML(s)}</li>`).join("");
+  $("list").querySelectorAll(".name").forEach(el => el.onclick = () => focusShop(shops[+el.dataset.i]));
+}
+
+function renderMarkers() {
+  shopLayer.clearLayers();
+  shops.forEach(s => {
+    s.marker = L.marker([s.lat, s.lng]).addTo(shopLayer)
+      .bindPopup(`<b>${esc(s.name)}</b><br><small>${metaHTML(s)}</small>${linksHTML(s)}`);
+  });
+  if (shops.length) map.fitBounds(L.latLngBounds([center, ...shops.map(s => [s.lat, s.lng])]).pad(0.1));
+}
+
+function focusShop(s) {
+  map.setView([s.lat, s.lng], 18);
+  s.marker && s.marker.openPopup();
+  $("map").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+// ---------- 轉盤 ----------
+function pickWheel() {
+  const pool = [...shops];
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  wheelShops = pool.slice(0, 12);
+  $("spin").disabled = wheelShops.length < 2;
+  $("shuffle").disabled = shops.length <= 12;
+  $("result").style.display = "none";
+  drawWheel();
+}
+$("shuffle").onclick = pickWheel;
+
+function drawWheel() {
+  const c = $("wheel"), ctx = c.getContext("2d"), W = c.width, r = W / 2 - 8;
+  ctx.clearRect(0, 0, W, W);
+  ctx.save(); ctx.translate(W / 2, W / 2); ctx.rotate(rotation);
+  const n = wheelShops.length;
+  if (!n) {
+    ctx.fillStyle = "#ccc"; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#555"; ctx.font = "bold 34px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText("先搜尋附近店家", 0, 12); ctx.restore(); return;
+  }
+  const seg = Math.PI * 2 / n;
+  for (let i = 0; i < n; i++) {
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.arc(0, 0, r, i * seg, (i + 1) * seg); ctx.closePath();
+    ctx.fillStyle = COLORS[i % COLORS.length]; ctx.fill();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 4; ctx.stroke();
+    ctx.save(); ctx.rotate(i * seg + seg / 2);
+    ctx.fillStyle = "#fff"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
+    ctx.font = `bold ${n > 8 ? 24 : 30}px sans-serif`;
+    let name = wheelShops[i].name; if (name.length > 9) name = name.slice(0, 8) + "…";
+    ctx.fillText(name, r - 20, 0); ctx.restore();
+  }
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(W / 2, W / 2, 40, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+  ctx.font = "40px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🍴", W / 2, W / 2 + 2);
+}
+
+$("spin").onclick = () => {
+  if (spinning || wheelShops.length < 2) return;
+  spinning = true; $("spin").disabled = true; $("result").style.display = "none";
+  const start = rotation, total = Math.PI * 2 * (5 + Math.random() * 3) + Math.random() * Math.PI * 2;
+  const dur = 4000, t0 = performance.now();
+  (function frame(now) {
+    const t = Math.min(1, (now - t0) / dur), ease = 1 - Math.pow(1 - t, 4);
+    rotation = start + total * ease; drawWheel();
+    if (t < 1) return requestAnimationFrame(frame);
+    spinning = false; $("spin").disabled = false;
+    const n = wheelShops.length, seg = Math.PI * 2 / n;
+    // 指針在正上方（-π/2）
+    const a = ((-Math.PI / 2 - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+    showResult(wheelShops[Math.floor(a / seg)]);
+  })(t0);
+};
+
+function showResult(s) {
+  const el = $("result");
+  el.innerHTML = `<h3>🎉 今天就吃：${esc(s.name)}</h3><div class="meta" style="color:var(--muted)">${metaHTML(s)}</div>${linksHTML(s)}
+    <div class="links"><a href="#" id="showOnMap">🗺️ 在地圖上看</a></div>`;
+  el.style.display = "block";
+  $("showOnMap").onclick = e => { e.preventDefault(); focusShop(s); };
+}
+
+drawWheel();
+</script>
+</body>
+</html>
