@@ -8,10 +8,10 @@
 <style>
   :root {
     --bg: #fff8f0; --card: #ffffff; --ink: #2b2118; --muted: #7a6a5c;
-    --accent: #e8590c; --accent-2: #f59f00; --line: #ecdccb;
+    --accent: #e8590c; --accent-2: #f59f00; --line: #ecdccb; --felt: #1f6e43;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #1c1712; --card: #2a221b; --ink: #f5ebe0; --muted: #b8a797; --line: #3d3228; }
+    :root { --bg: #1c1712; --card: #2a221b; --ink: #f5ebe0; --muted: #b8a797; --line: #3d3228; --felt: #174f31; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--ink);
@@ -20,44 +20,113 @@
   header h1 { margin: 0; font-size: 1.6rem; }
   header p { margin: 4px 0 0; color: var(--muted); font-size: .9rem; }
   main { max-width: 1100px; margin: 0 auto; padding: 0 16px 32px;
-    display: grid; gap: 16px; grid-template-columns: 1fr; }
-  @media (min-width: 900px) { main { grid-template-columns: 1.2fr 1fr; } }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 900px) { main { grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); } }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
   .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-  .controls input[type=text] { flex: 1 1 180px; min-width: 0; }
+  .controls input[type=text] { flex: 1 1 160px; min-width: 0; }
   input, select, button { font: inherit; padding: 8px 10px; border-radius: 10px;
     border: 1px solid var(--line); background: var(--card); color: var(--ink); }
   button { cursor: pointer; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 600; }
   button:disabled { opacity: .5; cursor: not-allowed; }
-  #map { height: 420px; border-radius: 12px; margin-top: 10px; z-index: 0; }
+  #map { height: 400px; border-radius: 12px; margin-top: 10px; z-index: 0; }
   #status { margin-top: 8px; font-size: .9rem; color: var(--muted); min-height: 1.2em; }
-  .wheel-wrap { position: relative; width: 100%; max-width: 380px; margin: 0 auto; aspect-ratio: 1; }
+  h2 { margin: 0 0 8px; font-size: 1.15rem; }
+
+  /* tabs */
+  .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+  .tabs button { padding: 8px 4px; font-size: .9rem; }
+  .tabs button.on { background: var(--ink); color: var(--bg); border-color: var(--ink); font-weight: 600; }
+  .game { display: none; }
+  .game.on { display: block; }
+  .hint { text-align: center; color: var(--muted); font-size: .88rem; margin: 0 0 10px; }
+  .row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+
+  /* wheel */
+  .wheel-wrap { position: relative; width: 100%; max-width: 360px; margin: 0 auto; aspect-ratio: 1; }
   #wheel { width: 100%; height: 100%; }
   .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
-    width: 0; height: 0; border-left: 14px solid transparent; border-right: 14px solid transparent;
-    border-top: 26px solid var(--ink); }
-  .spin-row { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
-  #result { margin-top: 12px; padding: 12px; border-radius: 12px; border: 2px dashed var(--accent-2); display: none; }
+    border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 26px solid var(--ink); }
+
+  /* revolver */
+  .rev-wrap { position: relative; width: 280px; height: 280px; margin: 28px auto 0; max-width: 100%; }
+  .rev-wrap .pointer { top: -14px; }
+  .cyl { position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #8d949b, #3b4046 70%);
+    box-shadow: inset 0 0 0 6px #2a2e33, 0 6px 18px rgba(0,0,0,.3);
+    transition: transform .45s cubic-bezier(.3,1.4,.5,1); }
+  .cyl.spin { transition: transform 1.6s cubic-bezier(.15,.8,.25,1); }
+  .cyl::after { content: ""; position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px;
+    border-radius: 50%; background: #2a2e33; }
+  .chamber { position: absolute; left: 50%; top: 50%; width: 84px; height: 84px; margin: -42px;
+    border-radius: 50%; background: #1b1e21; box-shadow: inset 0 4px 10px #000;
+    display: flex; align-items: center; justify-content: center; }
+  .chamber span { color: #fff; font-size: .78rem; line-height: 1.2; text-align: center; padding: 4px;
+    word-break: break-all; transition: transform .45s cubic-bezier(.3,1.4,.5,1); }
+  .cyl.spin .chamber span { transition: transform 1.6s cubic-bezier(.15,.8,.25,1); }
+  .chamber.out { background: #555; }
+  .chamber.out span { text-decoration: line-through; opacity: .5; }
+  .chamber.hit { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-2), 0 0 24px var(--accent); }
+  #revMsg { text-align: center; font-size: 1.3rem; font-weight: 700; min-height: 1.6em; margin-top: 10px; }
+  .shake { animation: shake .4s; }
+  @keyframes shake { 0%,100% { transform: translateX(0) } 20%,60% { transform: translateX(-8px) } 40%,80% { transform: translateX(8px) } }
+
+  /* dice */
+  .dice-box { display: flex; justify-content: center; }
+  .die { width: 120px; height: 120px; border-radius: 22px; background: #fff; border: 2px solid #ddd;
+    box-shadow: 0 6px 14px rgba(0,0,0,.18); display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+    padding: 16px; gap: 4px; }
+  .die i { border-radius: 50%; background: transparent; }
+  .die i.d { background: #222; }
+  .die.one i.d { background: #d6336c; }
+  .die.rolling { animation: roll .6s linear infinite; }
+  @keyframes roll { 0% { transform: rotate(0) } 25% { transform: rotate(25deg) translateY(-8px) } 75% { transform: rotate(-25deg) translateY(-4px) } 100% { transform: rotate(0) } }
+  .dice-list { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 6px; }
+  .dice-list li { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); }
+  .dice-list li b { font-size: 1.5rem; line-height: 1; }
+  .dice-list li.hit { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* cards */
+  .table { background: var(--felt); border-radius: 14px; padding: 14px;
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .pcard { aspect-ratio: 5 / 7; perspective: 600px; cursor: pointer; }
+  .pcard .inner { position: relative; width: 100%; height: 100%; transition: transform .6s; transform-style: preserve-3d; }
+  .pcard.flip .inner { transform: rotateY(180deg); }
+  .pcard .face { position: absolute; inset: 0; border-radius: 10px; backface-visibility: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px; }
+  .pcard .back { background: repeating-linear-gradient(45deg, #c92a2a 0 6px, #e03131 6px 12px); border: 4px solid #fff; color: #fff;
+    font-size: 1.6rem; }
+  .pcard .front { background: #fff; color: #222; transform: rotateY(180deg); border: 1px solid #ccc; }
+  .pcard .front .v { font-size: 1.5rem; font-weight: 700; line-height: 1; }
+  .pcard .front .v.red { color: #d6336c; }
+  .pcard .front .n { font-size: .7rem; text-align: center; margin-top: 4px; word-break: break-all; line-height: 1.15; }
+  .pcard.win .front { box-shadow: 0 0 0 4px var(--accent-2), 0 0 18px var(--accent-2); }
+  .pcard.lose { opacity: .55; }
+
+  /* result */
+  #result { margin-top: 14px; padding: 12px; border-radius: 12px; border: 2px dashed var(--accent-2); display: none; }
   #result h3 { margin: 0 0 6px; }
   .links { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
   .links a { text-decoration: none; padding: 6px 10px; border-radius: 8px; font-size: .9rem;
-    border: 1px solid var(--line); color: var(--ink); }
+    border: 1px solid var(--line); color: var(--ink); white-space: nowrap; }
   .links a.g { background: #1a73e8; color: #fff; border-color: #1a73e8; }
-  #list { list-style: none; padding: 0; margin: 10px 0 0; max-height: 360px; overflow-y: auto; }
-  #list li { padding: 10px 4px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: flex-start; }
-  #list li .info { flex: 1; min-width: 0; }
+
+  /* list */
+  #list { list-style: none; padding: 0; margin: 10px 0 0; max-height: 380px; overflow-y: auto; }
+  #list li { padding: 10px 4px; border-bottom: 1px solid var(--line); display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap; }
+  #list li .info { flex: 1 1 200px; min-width: 0; }
   #list li .name { font-weight: 600; cursor: pointer; }
-  #list li .meta { color: var(--muted); font-size: .85rem; }
+  #list li .del { border: none; background: none; color: var(--muted); padding: 4px; }
+  .meta { color: var(--muted); font-size: .85rem; }
   .tag { display: inline-block; font-size: .75rem; padding: 1px 6px; border-radius: 6px;
     background: var(--bg); border: 1px solid var(--line); margin-right: 4px; }
-  h2 { margin: 0 0 8px; font-size: 1.15rem; }
 </style>
 </head>
 <body>
 <header>
   <h1>🍱 午餐轉盤</h1>
-  <p>不知道吃什麼？找附近店家，轉一下讓命運決定！</p>
+  <p>不知道吃什麼？找附近店家，跟朋友一起玩，讓命運決定！</p>
 </header>
 <main>
   <section class="card">
@@ -68,23 +137,19 @@
       <button id="go">定位</button>
     </div>
     <div class="controls" style="margin-top:8px">
-      <label>範圍
-        <select id="radius">
-          <option value="300">300 公尺</option>
-          <option value="500" selected>500 公尺</option>
-          <option value="1000">1 公里</option>
-          <option value="2000">2 公里</option>
-        </select>
-      </label>
-      <label>類型
-        <select id="kind">
-          <option value="restaurant|fast_food|cafe|food_court">全部</option>
-          <option value="restaurant">餐廳</option>
-          <option value="fast_food">速食/小吃</option>
-          <option value="cafe">咖啡廳</option>
-        </select>
-      </label>
-      <input id="keyword" type="text" placeholder="關鍵字篩選，例如：麵、飯、壽司">
+      <select id="radius" aria-label="範圍">
+        <option value="300">300 公尺</option>
+        <option value="500" selected>500 公尺</option>
+        <option value="1000">1 公里</option>
+        <option value="2000">2 公里</option>
+      </select>
+      <select id="kind" aria-label="類型">
+        <option value="restaurant|fast_food|cafe|food_court">全部類型</option>
+        <option value="restaurant">餐廳</option>
+        <option value="fast_food">速食/小吃</option>
+        <option value="cafe">咖啡廳</option>
+      </select>
+      <input id="keyword" type="text" placeholder="關鍵字，例如：麵、飯、壽司">
       <button id="search" class="primary">搜尋附近店家</button>
     </div>
     <div id="map"></div>
@@ -92,20 +157,58 @@
   </section>
 
   <section class="card">
-    <h2>🎡 午餐轉盤</h2>
-    <div class="wheel-wrap">
-      <div class="pointer"></div>
-      <canvas id="wheel" width="760" height="760"></canvas>
+    <h2>🎲 選餐遊戲</h2>
+    <div class="tabs" id="tabs">
+      <button data-g="wheel" class="on">🎡 轉盤</button>
+      <button data-g="rev">🔫 俄羅斯輪盤</button>
+      <button data-g="dice">🎲 骰子</button>
+      <button data-g="cards">🃏 撲克牌</button>
     </div>
-    <div class="spin-row">
-      <button id="spin" class="primary" disabled>開始轉！</button>
-      <button id="shuffle" disabled>換一批店家</button>
+
+    <div class="game on" id="g-wheel">
+      <p class="hint">轉到哪家就吃哪家！</p>
+      <div class="wheel-wrap"><div class="pointer"></div><canvas id="wheel" width="720" height="720"></canvas></div>
+      <div class="row"><button id="spin" class="primary">開始轉！</button></div>
     </div>
+
+    <div class="game" id="g-rev">
+      <p class="hint">大家輪流扣扳機：「喀」= 這家淘汰，「砰」= 就吃這家！</p>
+      <div class="rev-wrap"><div class="pointer"></div><div class="cyl" id="cyl"></div></div>
+      <div id="revMsg"></div>
+      <div class="row">
+        <button id="revSpin">🔄 轉彈巢</button>
+        <button id="revFire" class="primary">扣扳機！</button>
+      </div>
+    </div>
+
+    <div class="game" id="g-dice">
+      <p class="hint">每家店對應一個點數，擲到幾點吃哪家！</p>
+      <div class="dice-box"><div class="die" id="die"></div></div>
+      <ul class="dice-list" id="diceList"></ul>
+      <div class="row"><button id="roll" class="primary">擲骰子！</button></div>
+    </div>
+
+    <div class="game" id="g-cards">
+      <p class="hint">每人翻一張牌，全部翻開後<b>點數最大</b>的那張決定午餐！（A 最大，同點比花色 ♠ &gt; ♥ &gt; ♦ &gt; ♣）</p>
+      <div class="table" id="table"></div>
+      <div class="row">
+        <button id="deal">🔀 重新發牌</button>
+        <button id="reveal" class="primary">全部翻開</button>
+      </div>
+    </div>
+
+    <div class="row"><button id="shuffle">🔁 換一批店家</button></div>
     <div id="result"></div>
   </section>
 
   <section class="card" style="grid-column: 1 / -1">
-    <h2>🏪 附近店家 <span id="count" style="color:var(--muted);font-weight:400;font-size:.9rem"></span></h2>
+    <h2>🏪 候選店家 <span id="count" style="color:var(--muted);font-weight:400;font-size:.9rem"></span></h2>
+    <div class="controls">
+      <input id="manual" type="text" placeholder="自己加一家店，例如：巷口那家滷肉飯">
+      <button id="add">＋ 加入</button>
+      <button id="demo">試玩範例店家</button>
+      <button id="clear">清空</button>
+    </div>
     <ul id="list"></ul>
   </section>
 </main>
@@ -115,20 +218,33 @@
 const $ = id => document.getElementById(id);
 const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
 const COLORS = ["#e8590c","#f59f00","#2f9e44","#1971c2","#9c36b5","#c2255c","#0c8599","#5c940d","#e67700","#3b5bdb","#d6336c","#087f5b"];
-const KIND_LABEL = { restaurant: "餐廳", fast_food: "速食/小吃", cafe: "咖啡廳", food_court: "美食街" };
+const KIND_LABEL = { restaurant: "餐廳", fast_food: "速食/小吃", cafe: "咖啡廳", food_court: "美食街", manual: "自己加的" };
+const DEMO = ["牛肉麵","滷肉飯","日式拉麵","韓式拌飯","麥當勞","越南河粉","咖哩飯","水餃","壽司","便當","義大利麵","泰式打拋豬"];
 
 let center = [25.0478, 121.5170]; // 預設：台北車站
-let shops = [], wheelShops = [], rotation = 0, spinning = false;
+let shops = [], pool = [], game = "wheel";
 
+// ---------- 小工具 ----------
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const short = (s, n) => s.length > n ? s.slice(0, n - 1) + "…" : s;
+function setStatus(t) { $("status").textContent = t; }
+function dist(a, b) {
+  const R = 6371000, toR = x => x * Math.PI / 180;
+  const dLat = toR(b[0] - a[0]), dLng = toR(b[1] - a[1]);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a[0])) * Math.cos(toR(b[0])) * Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// ---------- 地圖 ----------
 const map = L.map("map").setView(center, 16);
 L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
   maxZoom: 19, attribution: "&copy; OpenStreetMap contributors"
 }).addTo(map);
 const shopLayer = L.layerGroup().addTo(map);
-let meMarker = L.circleMarker(center, { radius: 9, color: "#fff", weight: 3, fillColor: "#1a73e8", fillOpacity: 1 }).addTo(map);
-let rangeCircle = L.circle(center, { radius: 500, color: "#e8590c", weight: 1, fillOpacity: .05 }).addTo(map);
+const meMarker = L.circleMarker(center, { radius: 9, color: "#fff", weight: 3, fillColor: "#1a73e8", fillOpacity: 1 }).addTo(map);
+const rangeCircle = L.circle(center, { radius: 500, color: "#e8590c", weight: 1, fillOpacity: .05 }).addTo(map);
 
-function setStatus(t) { $("status").textContent = t; }
 function setCenter(latlng, zoom) {
   center = [latlng[0], latlng[1]];
   meMarker.setLatLng(center);
@@ -166,13 +282,6 @@ $("place").onkeydown = e => { if (e.key === "Enter") geocode(); };
 $("search").onclick = () => searchShops();
 $("keyword").onkeydown = e => { if (e.key === "Enter") searchShops(); };
 
-function dist(a, b) {
-  const R = 6371000, toR = x => x * Math.PI / 180;
-  const dLat = toR(b[0] - a[0]), dLng = toR(b[1] - a[1]);
-  const h = Math.sin(dLat/2)**2 + Math.cos(toR(a[0])) * Math.cos(toR(b[0])) * Math.sin(dLng/2)**2;
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
-
 async function searchShops() {
   const radius = +$("radius").value, kind = $("kind").value;
   rangeCircle.setRadius(radius);
@@ -187,86 +296,121 @@ async function searchShops() {
     } catch {}
   }
   $("search").disabled = false;
-  if (!data) return setStatus("店家資料服務忙碌中，請稍後再試。");
+  if (!data) return setStatus("店家資料服務忙碌中，請稍後再試，或在下方自己加店家。");
 
   const kw = $("keyword").value.trim().toLowerCase();
+  const seen = new Set();
   shops = data.elements.map(e => {
     const lat = e.lat ?? e.center?.lat, lng = e.lon ?? e.center?.lon, t = e.tags || {};
     return { name: t["name:zh"] || t.name, lat, lng, kind: t.amenity, cuisine: t.cuisine || "",
       addr: [t["addr:city"], t["addr:district"], t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(""),
       hours: t.opening_hours || "", d: dist(center, [lat, lng]) };
   }).filter(s => s.lat && (!kw || (s.name + s.cuisine).toLowerCase().includes(kw)))
-    .sort((a, b) => a.d - b.d);
+    .sort((a, b) => a.d - b.d)
+    .filter(s => !seen.has(s.name) && seen.add(s.name));
 
-  // 去除同名重複
-  const seen = new Set();
-  shops = shops.filter(s => !seen.has(s.name) && seen.add(s.name));
-
-  renderList(); renderMarkers(); pickWheel();
-  setStatus(shops.length ? `找到 ${shops.length} 家店！` : "這附近沒找到店家，試試放大範圍或換關鍵字。");
+  refresh(true);
+  setStatus(shops.length ? `找到 ${shops.length} 家店！選個遊戲開始玩吧。` : "這附近沒找到店家，試試放大範圍或換關鍵字。");
 }
 
+// ---------- 店家清單 ----------
 function googleLink(s) {
-  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(`${s.name} ${s.lat},${s.lng}`);
+  const q = s.lat != null ? `${s.name} ${s.lat},${s.lng}` : `${s.name} near ${center[0]},${center[1]}`;
+  return "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(q);
 }
 function navLink(s) {
-  return `https://www.google.com/maps/dir/?api=1&destination=${s.lat},${s.lng}&travelmode=walking`;
+  const dest = s.lat != null ? `${s.lat},${s.lng}` : encodeURIComponent(s.name);
+  return `https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=walking`;
 }
-function esc(t) { return String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
 function linksHTML(s) {
   return `<div class="links">
     <a class="g" href="${googleLink(s)}" target="_blank" rel="noopener">⭐ Google 評價</a>
     <a href="${navLink(s)}" target="_blank" rel="noopener">🚶 導航過去</a></div>`;
 }
 function metaHTML(s) {
-  return `<span class="tag">${KIND_LABEL[s.kind] || s.kind}</span>${s.cuisine ? `<span class="tag">${esc(s.cuisine)}</span>` : ""}
-    約 ${Math.round(s.d)} 公尺${s.addr ? " · " + esc(s.addr) : ""}${s.hours ? "<br>營業時間：" + esc(s.hours) : ""}`;
+  return `<span class="tag">${KIND_LABEL[s.kind] || esc(s.kind)}</span>${s.cuisine ? `<span class="tag">${esc(s.cuisine)}</span>` : ""}
+    ${s.d != null ? `約 ${Math.round(s.d)} 公尺` : ""}${s.addr ? " · " + esc(s.addr) : ""}${s.hours ? "<br>營業時間：" + esc(s.hours) : ""}`;
 }
 
 function renderList() {
   $("count").textContent = shops.length ? `（${shops.length} 家）` : "";
-  $("list").innerHTML = shops.map((s, i) => `<li>
+  $("list").innerHTML = shops.length ? shops.map((s, i) => `<li>
       <div class="info"><div class="name" data-i="${i}">${esc(s.name)}</div><div class="meta">${metaHTML(s)}</div></div>
-      ${linksHTML(s)}</li>`).join("");
+      ${linksHTML(s)}<button class="del" data-i="${i}" title="移除">✕</button></li>`).join("")
+    : `<li class="meta">還沒有店家。搜尋附近店家、自己加，或按「試玩範例店家」。</li>`;
   $("list").querySelectorAll(".name").forEach(el => el.onclick = () => focusShop(shops[+el.dataset.i]));
+  $("list").querySelectorAll(".del").forEach(el => el.onclick = () => { shops.splice(+el.dataset.i, 1); refresh(false); });
 }
 
-function renderMarkers() {
+function renderMarkers(fit) {
   shopLayer.clearLayers();
-  shops.forEach(s => {
+  const geo = shops.filter(s => s.lat != null);
+  geo.forEach(s => {
     s.marker = L.marker([s.lat, s.lng]).addTo(shopLayer)
       .bindPopup(`<b>${esc(s.name)}</b><br><small>${metaHTML(s)}</small>${linksHTML(s)}`);
   });
-  if (shops.length) map.fitBounds(L.latLngBounds([center, ...shops.map(s => [s.lat, s.lng])]).pad(0.1));
+  if (fit && geo.length) map.fitBounds(L.latLngBounds([center, ...geo.map(s => [s.lat, s.lng])]).pad(0.1));
 }
 
 function focusShop(s) {
+  if (s.lat == null) return window.open(googleLink(s), "_blank");
   map.setView([s.lat, s.lng], 18);
   s.marker && s.marker.openPopup();
   $("map").scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
-// ---------- 轉盤 ----------
-function pickWheel() {
-  const pool = [...shops];
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  wheelShops = pool.slice(0, 12);
-  $("spin").disabled = wheelShops.length < 2;
-  $("shuffle").disabled = shops.length <= 12;
-  $("result").style.display = "none";
-  drawWheel();
+function addManual(name) {
+  name = name.trim();
+  if (!name || shops.some(s => s.name === name)) return;
+  shops.push({ name, lat: null, lng: null, kind: "manual", cuisine: "", addr: "", hours: "", d: null });
 }
-$("shuffle").onclick = pickWheel;
+$("add").onclick = () => { addManual($("manual").value); $("manual").value = ""; refresh(false); };
+$("manual").onkeydown = e => { if (e.key === "Enter") $("add").onclick(); };
+$("demo").onclick = () => { DEMO.forEach(addManual); refresh(false); };
+$("clear").onclick = () => { shops = []; refresh(false); };
 
+function refresh(fit) { renderList(); renderMarkers(fit); newPool(); }
+
+// ---------- 遊戲共用 ----------
+function newPool() {
+  pool = shuffle(shops);
+  $("shuffle").disabled = shops.length <= 6;
+  hideResult();
+  setupGame();
+}
+$("shuffle").onclick = newPool;
+
+$("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
+  game = b.dataset.g;
+  $("tabs").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
+  document.querySelectorAll(".game").forEach(g => g.classList.toggle("on", g.id === "g-" + game));
+  hideResult(); setupGame();
+});
+function setupGame() { ({ wheel: setupWheel, rev: setupRev, dice: setupDice, cards: setupCards })[game](); }
+
+function hideResult() { $("result").style.display = "none"; }
+function showResult(s, title) {
+  const el = $("result");
+  el.innerHTML = `<h3>${title || "🎉 今天就吃"}：${esc(s.name)}</h3><div class="meta">${metaHTML(s)}</div>${linksHTML(s)}
+    ${s.lat != null ? `<div class="links"><a href="#" id="showOnMap">🗺️ 在地圖上看</a></div>` : ""}`;
+  el.style.display = "block";
+  if ($("showOnMap")) $("showOnMap").onclick = e => { e.preventDefault(); focusShop(s); };
+  el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+const needTwo = () => pool.length >= 2;
+
+// ---------- 🎡 轉盤 ----------
+let rotation = 0, spinning = false, wheelShops = [];
+function setupWheel() { wheelShops = pool.slice(0, 12); $("spin").disabled = !needTwo(); drawWheel(); }
 function drawWheel() {
   const c = $("wheel"), ctx = c.getContext("2d"), W = c.width, r = W / 2 - 8;
   ctx.clearRect(0, 0, W, W);
   ctx.save(); ctx.translate(W / 2, W / 2); ctx.rotate(rotation);
   const n = wheelShops.length;
-  if (!n) {
+  if (n < 2) {
     ctx.fillStyle = "#ccc"; ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#555"; ctx.font = "bold 34px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("先搜尋附近店家", 0, 12); ctx.restore(); return;
+    ctx.fillText("先加入至少 2 家店", 0, 12); ctx.restore(); return;
   }
   const seg = Math.PI * 2 / n;
   for (let i = 0; i < n; i++) {
@@ -276,17 +420,15 @@ function drawWheel() {
     ctx.save(); ctx.rotate(i * seg + seg / 2);
     ctx.fillStyle = "#fff"; ctx.textAlign = "right"; ctx.textBaseline = "middle";
     ctx.font = `bold ${n > 8 ? 24 : 30}px sans-serif`;
-    let name = wheelShops[i].name; if (name.length > 9) name = name.slice(0, 8) + "…";
-    ctx.fillText(name, r - 20, 0); ctx.restore();
+    ctx.fillText(short(wheelShops[i].name, 9), r - 20, 0); ctx.restore();
   }
   ctx.restore();
   ctx.beginPath(); ctx.arc(W / 2, W / 2, 40, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
   ctx.font = "40px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText("🍴", W / 2, W / 2 + 2);
 }
-
 $("spin").onclick = () => {
-  if (spinning || wheelShops.length < 2) return;
-  spinning = true; $("spin").disabled = true; $("result").style.display = "none";
+  if (spinning || !needTwo()) return;
+  spinning = true; $("spin").disabled = true; hideResult();
   const start = rotation, total = Math.PI * 2 * (5 + Math.random() * 3) + Math.random() * Math.PI * 2;
   const dur = 4000, t0 = performance.now();
   (function frame(now) {
@@ -295,21 +437,135 @@ $("spin").onclick = () => {
     if (t < 1) return requestAnimationFrame(frame);
     spinning = false; $("spin").disabled = false;
     const n = wheelShops.length, seg = Math.PI * 2 / n;
-    // 指針在正上方（-π/2）
-    const a = ((-Math.PI / 2 - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+    const a = ((-Math.PI / 2 - rotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2); // 指針在正上方
     showResult(wheelShops[Math.floor(a / seg)]);
   })(t0);
 };
 
-function showResult(s) {
-  const el = $("result");
-  el.innerHTML = `<h3>🎉 今天就吃：${esc(s.name)}</h3><div class="meta" style="color:var(--muted)">${metaHTML(s)}</div>${linksHTML(s)}
-    <div class="links"><a href="#" id="showOnMap">🗺️ 在地圖上看</a></div>`;
-  el.style.display = "block";
-  $("showOnMap").onclick = e => { e.preventDefault(); focusShop(s); };
+// ---------- 🔫 俄羅斯輪盤 ----------
+let rev = null;
+function setupRev() {
+  const items = pool.slice(0, 6), n = items.length;
+  rev = { items, n, bullet: Math.floor(Math.random() * n), cur: 0, rot: 0, out: new Set(), done: false, turn: 1, busy: false };
+  const cyl = $("cyl"); cyl.className = "cyl"; cyl.style.transform = "rotate(0deg)";
+  cyl.innerHTML = n < 2 ? "" : items.map((s, i) => `<div class="chamber" data-i="${i}"><span>${esc(short(s.name, 8))}</span></div>`).join("");
+  layoutRev();
+  $("revMsg").textContent = n < 2 ? "先加入至少 2 家店" : "子彈已上膛，第 1 位玩家請扣扳機！";
+  $("revFire").disabled = $("revSpin").disabled = n < 2;
+  $("revSpin").textContent = "🔄 轉彈巢";
 }
+function layoutRev() {
+  const step = 360 / rev.n;
+  $("cyl").style.transform = `rotate(${rev.rot}deg)`;
+  $("cyl").querySelectorAll(".chamber").forEach(el => {
+    const a = +el.dataset.i * step;
+    el.style.transform = `rotate(${a}deg) translateY(-88px)`;
+    el.firstChild.style.transform = `rotate(${-(a + rev.rot)}deg)`;
+  });
+}
+$("revSpin").onclick = () => {
+  if (rev.busy) return;
+  const done = rev.done;
+  if (done) { setupRev(); hideResult(); }
+  rev.busy = true;
+  const k = Math.floor(Math.random() * rev.n), step = 360 / rev.n;
+  rev.cur = (rev.cur + k) % rev.n;
+  rev.rot -= 720 + k * step;
+  rev.bullet = Math.floor(Math.random() * rev.n);
+  while (rev.out.has(rev.bullet)) rev.bullet = (rev.bullet + 1) % rev.n;
+  $("cyl").classList.add("spin"); layoutRev();
+  $("revMsg").textContent = "嘩啦啦啦⋯⋯";
+  setTimeout(() => { $("cyl").classList.remove("spin"); rev.busy = false; $("revMsg").textContent = `彈巢轉好了，第 ${rev.turn} 位玩家請扣扳機！`; }, 1600);
+};
+$("revFire").onclick = () => {
+  if (rev.busy || rev.done) return;
+  const i = rev.cur, el = $("cyl").querySelector(`[data-i="${i}"]`);
+  if (i === rev.bullet) {
+    rev.done = true; el.classList.add("hit"); $("revFire").disabled = true;
+    $("g-rev").querySelector(".rev-wrap").classList.add("shake");
+    setTimeout(() => $("g-rev").querySelector(".rev-wrap").classList.remove("shake"), 400);
+    $("revMsg").textContent = `💥 砰！第 ${rev.turn} 位玩家中彈！`;
+    $("revSpin").textContent = "🔄 再玩一次";
+    showResult(rev.items[i], "💥 中彈的店");
+    return;
+  }
+  rev.out.add(i); el.classList.add("out");
+  $("revMsg").textContent = `喀⋯⋯ 沒事！「${short(rev.items[i].name, 10)}」淘汰`;
+  rev.turn++;
+  rev.busy = true;
+  setTimeout(() => {
+    do { rev.cur = (rev.cur + 1) % rev.n; rev.rot -= 360 / rev.n; } while (rev.out.has(rev.cur) && rev.cur !== rev.bullet);
+    layoutRev(); rev.busy = false;
+    $("revMsg").textContent += `，換第 ${rev.turn} 位玩家`;
+  }, 700);
+};
 
-drawWheel();
+// ---------- 🎲 骰子 ----------
+const PIPS = { 1: [4], 2: [0, 8], 3: [0, 4, 8], 4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 2, 3, 5, 6, 8] };
+const FACES = ["", "⚀", "⚁", "⚂", "⚃", "⚄", "⚅"];
+let diceShops = [], rolling = false;
+function drawDie(v) {
+  const d = $("die");
+  d.className = "die" + (v === 1 ? " one" : "") + (rolling ? " rolling" : "");
+  d.innerHTML = Array.from({ length: 9 }, (_, i) => `<i class="${PIPS[v].includes(i) ? "d" : ""}"></i>`).join("");
+}
+function setupDice() {
+  diceShops = pool.slice(0, 6);
+  $("diceList").innerHTML = diceShops.length < 2 ? `<li class="meta">先加入至少 2 家店</li>`
+    : diceShops.map((s, i) => `<li data-i="${i}"><b>${FACES[i + 1]}</b><span>${esc(s.name)}</span></li>`).join("");
+  $("roll").disabled = diceShops.length < 2;
+  drawDie(6);
+}
+$("roll").onclick = () => {
+  if (rolling || diceShops.length < 2) return;
+  rolling = true; $("roll").disabled = true; hideResult();
+  $("diceList").querySelectorAll("li").forEach(li => li.classList.remove("hit"));
+  const n = diceShops.length, final = 1 + Math.floor(Math.random() * n);
+  let ticks = 0;
+  const iv = setInterval(() => {
+    drawDie(1 + Math.floor(Math.random() * 6));
+    if (++ticks >= 14) {
+      clearInterval(iv); rolling = false; drawDie(final); $("roll").disabled = false;
+      $("diceList").querySelector(`[data-i="${final - 1}"]`).classList.add("hit");
+      showResult(diceShops[final - 1], `🎲 擲出 ${final} 點`);
+    }
+  }, 90);
+};
+
+// ---------- 🃏 撲克牌 ----------
+const SUITS = ["♣", "♦", "♥", "♠"]; // 由小到大
+const RANKS = ["2","3","4","5","6","7","8","9","10","J","Q","K","A"];
+let hand = [];
+function setupCards() {
+  const deck = [];
+  RANKS.forEach((r, ri) => SUITS.forEach((s, si) => deck.push({ r, s, score: ri * 4 + si })));
+  const cards = shuffle(deck);
+  hand = pool.slice(0, 8).map((shop, i) => ({ shop, card: cards[i], open: false }));
+  const t = $("table");
+  t.innerHTML = hand.length < 2 ? `<p class="meta" style="grid-column:1/-1;color:#fff;text-align:center">先加入至少 2 家店</p>`
+    : hand.map((h, i) => `<div class="pcard" data-i="${i}"><div class="inner">
+        <div class="face back">🍴</div>
+        <div class="face front"><div class="v ${"♥♦".includes(h.card.s) ? "red" : ""}">${h.card.s}${h.card.r}</div>
+        <div class="n">${esc(short(h.shop.name, 12))}</div></div></div></div>`).join("");
+  t.querySelectorAll(".pcard").forEach(el => el.onclick = () => flip(+el.dataset.i));
+  $("reveal").disabled = hand.length < 2;
+}
+function flip(i) {
+  const h = hand[i];
+  if (!h || h.open) return;
+  h.open = true;
+  $("table").querySelector(`[data-i="${i}"]`).classList.add("flip");
+  if (hand.every(x => x.open)) setTimeout(judge, 650);
+}
+function judge() {
+  const best = hand.reduce((a, b) => b.card.score > a.card.score ? b : a);
+  hand.forEach((h, i) => $("table").querySelector(`[data-i="${i}"]`).classList.add(h === best ? "win" : "lose"));
+  showResult(best.shop, `🃏 最大的牌 ${best.card.s}${best.card.r}`);
+}
+$("reveal").onclick = () => hand.forEach((_, i) => setTimeout(() => flip(i), i * 120));
+$("deal").onclick = () => { pool = shuffle(shops); hideResult(); setupCards(); };
+
+refresh(false);
 </script>
 </body>
 </html>
