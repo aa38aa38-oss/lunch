@@ -171,6 +171,7 @@
         <option value="2000">2 公里</option>
       </select>
       <select id="kind" aria-label="類型">
+        <option value="meal" selected>🍚 吃正餐（不含咖啡廳、飲料店）</option>
         <option value="restaurant|fast_food|cafe|food_court">全部類型</option>
         <option value="restaurant">餐廳</option>
         <option value="fast_food">速食/小吃</option>
@@ -445,6 +446,11 @@ async function searchShops() {
   applyFilters(false, ((Date.now() - t0) / 1000).toFixed(1));
 }
 
+// 咖啡廳、手搖飲料店（有些在地圖上被標成速食店，所以也看料理類型和店名）
+const DRINK_CUISINE = /\b(bubble_tea|tea|coffee_shop|coffee|juice|smoothie)\b/i;
+const DRINK_NAME = /咖啡|coffee|café|cafe|珈琲|手搖|飲料|果汁|鮮茶|奶茶|茶飲|茶坊|茶湯|茶舖|茶鋪|50嵐|五十嵐|清心福全|迷客夏|可不可|麻古|coco都可|大苑子|茶太|水巷茶弄|五桐號|得正|再睡5分鐘|珍煮丹|鮮茶道|老虎堂|貢茶|一沐日|龜記|萬波|吃茶三千|茶聚|茶的魔手|starbucks|星巴克|路易莎|louisa|cama|85度c|\btea\b|juice/i;
+const isDrinkShop = s => s.kind === "cafe" || DRINK_CUISINE.test(s.cuisine) || (DRINK_NAME.test(s.name) && !/茶餐廳|茶樓|飲茶|餐廳|麵|飯|便當|鍋|料理|食堂/.test(s.name));
+
 // 類型、關鍵字、範圍縮小都在本機篩選，不用重新上網搜尋
 function matchKeyword(s, kw) {
   if (!kw) return true;
@@ -454,11 +460,11 @@ function matchKeyword(s, kw) {
 }
 function applyFilters(fit, secs, more) {
   if (!raw) return;
-  const kind = $("kind").value.split("|"), kw = $("keyword").value.trim().toLowerCase(), radius = +$("radius").value;
+  const kv = $("kind").value, kind = kv === "meal" ? ["restaurant", "fast_food", "food_court"] : kv.split("|"), kw = $("keyword").value.trim().toLowerCase(), radius = +$("radius").value;
   const seen = new Set();
   const manual = shops.filter(s => s.kind === "manual");
   const band = +$("price").value;
-  shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && matchKeyword(s, kw) && (!band || priceBand(s.price) === band))
+  shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && !(kv === "meal" && isDrinkShop(s)) && matchKeyword(s, kw) && (!band || priceBand(s.price) === band))
     .filter(s => { const k = s.name + "@" + s.lat.toFixed(3) + "," + s.lng.toFixed(3); return !seen.has(k) && seen.add(k); })
     .concat(manual.filter(s => !raw.list.some(r => r.name === s.name)));
   refresh(fit);
