@@ -119,6 +119,12 @@
   #list li .name { font-weight: 600; cursor: pointer; }
   #list li .del { border: none; background: none; color: var(--muted); padding: 4px; }
   .meta { color: var(--muted); font-size: .85rem; }
+  .price { display: inline-block; font-size: .8rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; margin-left: 6px;
+    vertical-align: 1px; white-space: nowrap; }
+  .price.p1 { background: #d3f9d8; color: #2b8a3e; }
+  .price.p2 { background: #fff3bf; color: #a35d00; }
+  .price.p3 { background: #ffe3e3; color: #c92a2a; }
+  .price.p0 { background: var(--bg); color: var(--muted); border: 1px solid var(--line); font-weight: 400; }
   .tag { display: inline-block; font-size: .75rem; padding: 1px 6px; border-radius: 6px;
     background: var(--bg); border: 1px solid var(--line); margin-right: 4px; }
 </style>
@@ -148,6 +154,12 @@
         <option value="restaurant">餐廳</option>
         <option value="fast_food">速食/小吃</option>
         <option value="cafe">咖啡廳</option>
+      </select>
+      <select id="price" aria-label="價位">
+        <option value="">不限價位</option>
+        <option value="1">💰 每人 $250 以內</option>
+        <option value="2">💰💰 每人 $250–750</option>
+        <option value="3">💰💰💰 每人 $750 以上</option>
       </select>
       <input id="keyword" type="text" placeholder="關鍵字，例如：麵、飯、壽司">
       <button id="search" class="primary">搜尋附近店家</button>
@@ -209,6 +221,7 @@
       <button id="demo">試玩範例店家</button>
       <button id="clear">清空</button>
     </div>
+    <p class="meta" style="margin:8px 0 0">💡 每人價位是依店名、連鎖品牌與料理類型推估的參考值，實際價格請點「⭐ Google 評價」確認。</p>
     <ul id="list"></ul>
   </section>
 </main>
@@ -226,6 +239,48 @@ const CUISINE_ZH = { chinese: "中式 中菜", taiwanese: "台式 台菜", japan
   coffee_shop: "咖啡", cake: "蛋糕 甜點", dessert: "甜點", bubble_tea: "手搖飲 飲料", tea: "茶 飲料", sandwich: "三明治",
   breakfast: "早餐 早午餐", brunch: "早午餐", steak_house: "牛排", dumpling: "水餃 餃子", seafood: "海鮮", indian: "印度",
   american: "美式", french: "法式", western: "西式", chicken: "雞", fried_chicken: "炸雞", beef_bowl: "丼飯 牛丼", donburi: "丼飯" };
+// ---------- 每人價位估計 ----------
+// 免費地圖資料沒有價格，這裡依「連鎖店 → 店名關鍵字 → 料理類型 → 店家類型」推估每人平均消費（新台幣）
+const PRICE_RULES = [
+  // 連鎖店
+  [/麥當勞|mcdonald/i, 150], [/肯德基|kfc/i, 180], [/摩斯|mos burger/i, 150], [/漢堡王|burger king/i, 180],
+  [/八方雲集|四海遊龍|池上|悟饕|麥味登|美而美|拉亞|弘爺|q burger/i, 100], [/吉野家|丸龜|すき家|sukiya/i, 170],
+  [/三商巧福|鬍鬚張/i, 160], [/爭鮮/, 250], [/壽司郎|藏壽司|はま壽司|hama/i, 350], [/大戶屋|樂雅樂|coco壱番屋|一蘭/i, 350],
+  [/鼎泰豐/, 700], [/瓦城|非常泰|大心/, 400], [/饗食天堂|饗饗|旭集|漢來海港/, 1300], [/王品|夏慕尼|藝奇|乍牛/, 1300],
+  [/西堤|陶板屋|原燒|聚北海道|石研室/, 900], [/石二鍋|呷哺|涓豆腐|一風堂/, 350], [/築間|老四川|錢都|鬼椒/, 550], [/這一鍋|海底撈|老先覺/, 800],
+  [/欣葉|添好運|點點心/, 600], [/星巴克|starbucks/i, 200], [/路易莎|louisa|cama|85度c/i, 150], [/必勝客|達美樂|pizza hut|domino/i, 300],
+  [/subway|拿坡里/i, 200], [/貴族世家|我家牛排|孫東寶/, 300], [/添財|金色三麥/, 600],
+  // 高價關鍵字
+  [/懷石|割烹|會席|omakase|無菜單|會館|招待所|fine dining/i, 2500], [/鐵板燒|teppanyaki/i, 1500], [/牛排館|steak ?house/i, 1500],
+  [/吃到飽|buffet|自助百匯/i, 900], [/燒肉|yakiniku|和牛/i, 900], [/居酒屋|izakaya|餐酒館|bistro|酒吧|\bbar\b|酒館|串燒/i, 800],
+  [/日本料理|海鮮|蟹|龍蝦/i, 800], [/牛排|steak/i, 600], [/火鍋|鍋物|涮涮|麻辣鍋|羊肉爐|薑母鴨|hot ?pot/i, 500],
+  [/港式|飲茶|台菜|川菜|粵菜|江浙|上海菜/i, 500], [/壽司|sushi|生魚片|丼|定食/i, 350],
+  // 中價關鍵字
+  [/早午餐|brunch/i, 320], [/義大利|pasta|披薩|pizza|義式|美式|trattoria/i, 350], [/泰式|泰國|韓式|韓國|印度/i, 300],
+  [/拉麵|ramen|らーめん/i, 280], [/茶餐廳|冰室|小籠|湯包/, 250],
+  // 平價關鍵字
+  [/早餐|豆漿|飯糰|蛋餅|燒餅/, 80], [/麵線|肉圓|魷魚羹|米粉湯|碗粿|蚵仔煎|雞排|鹽酥雞|滷味|豆花|剉冰|甜不辣/, 90],
+  [/便當|自助餐|滷肉飯|魯肉飯|雞肉飯|排骨|水餃|餃子|鍋貼|小吃|麵店|麵館|粥|米粉|陽春麵|乾麵|切仔麵/, 110],
+  [/牛肉麵|咖哩|蔬食|素食|越南|河粉|漢堡|burger|三明治|sandwich|甜點|dessert/i, 200],
+  [/料理|restaurant|食堂|廚房|kitchen/i, 350], [/麵|飯/, 180], [/cafe|café|coffee|咖啡/i, 200], [/茶/, 150],
+];
+const CUISINE_PRICE = { breakfast: 80, bubble_tea: 70, tea: 80, dumpling: 110, noodle: 130, noodles: 130, rice: 120, taiwanese: 180,
+  beef_noodle: 200, burger: 150, sandwich: 150, fried_chicken: 150, chicken: 150, kebab: 150, donut: 120, coffee_shop: 180, cake: 180,
+  dessert: 180, ice_cream: 120, vegetarian: 220, vegan: 250, vietnamese: 180, curry: 220, donburi: 220, beef_bowl: 180, ramen: 280,
+  chinese: 300, korean: 300, thai: 300, pizza: 300, indian: 400, italian: 450, japanese: 450, american: 400, western: 400, brunch: 320,
+  sushi: 450, hot_pot: 550, barbecue: 700, bbq: 700, seafood: 800, steak_house: 900, french: 1500, fine_dining: 2500 };
+const KIND_PRICE = { fast_food: 130, cafe: 220, food_court: 150, restaurant: 300 };
+
+function estimatePrice(name, cuisine, kind) {
+  for (const [re, p] of PRICE_RULES) if (re.test(name)) return p;
+  const cs = cuisine.split(/[;,]/).map(c => CUISINE_PRICE[c.trim()]).filter(Boolean);
+  if (cs.length) return Math.max(...cs);
+  return KIND_PRICE[kind] ?? null;
+}
+const priceBand = p => p == null ? 0 : p <= 250 ? 1 : p <= 750 ? 2 : 3;
+const priceHTML = s => s.price == null ? `<span class="price p0">價位未知</span>`
+  : `<span class="price p${priceBand(s.price)}" title="依店名與類型推估，僅供參考">約 $${s.price}/人</span>`;
+
 const COLORS = ["#e8590c","#f59f00","#2f9e44","#1971c2","#9c36b5","#c2255c","#0c8599","#5c940d","#e67700","#3b5bdb","#d6336c","#087f5b"];
 const KIND_LABEL = { restaurant: "餐廳", fast_food: "速食/小吃", cafe: "咖啡廳", food_court: "美食街", manual: "自己加的" };
 const DEMO = ["牛肉麵","滷肉飯","日式拉麵","韓式拌飯","麥當勞","越南河粉","咖哩飯","水餃","壽司","便當","義大利麵","泰式打拋豬"];
@@ -310,9 +365,10 @@ async function nomi(params) {
 
 function toShop(e) {
   const lat = +e.lat, lng = +e.lon, a = e.address || {}, x = e.extratags || {};
-  return { id: e.osm_type + e.osm_id, name: e.name || (e.display_name || "").split(",")[0], lat, lng, kind: e.type,
-    cuisine: x.cuisine || "", addr: [a.road, a.house_number && a.house_number + "號"].filter(Boolean).join(""),
-    hours: x.opening_hours || "", d: dist(center, [lat, lng]) };
+  const name = e.name || (e.display_name || "").split(",")[0], cuisine = x.cuisine || "";
+  return { id: e.osm_type + e.osm_id, name, lat, lng, kind: e.type, cuisine,
+    addr: [a.road, a.house_number && a.house_number + "號"].filter(Boolean).join(""),
+    hours: x.opening_hours || "", d: dist(center, [lat, lng]), price: estimatePrice(name, cuisine, e.type) };
 }
 
 async function searchShops() {
@@ -369,17 +425,19 @@ function applyFilters(fit, secs, more) {
   const kind = $("kind").value.split("|"), kw = $("keyword").value.trim().toLowerCase(), radius = +$("radius").value;
   const seen = new Set();
   const manual = shops.filter(s => s.kind === "manual");
-  shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && matchKeyword(s, kw))
+  const band = +$("price").value;
+  shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && matchKeyword(s, kw) && (!band || priceBand(s.price) === band))
     .filter(s => !seen.has(s.name) && seen.add(s.name))
     .concat(manual.filter(s => !seen.has(s.name)));
   refresh(fit);
   const n = shops.length - manual.length;
   if (more) return setStatus(`已找到 ${n} 家，繼續找更多中…`);
   setStatus(n ? `找到 ${n} 家店${secs ? `（${secs} 秒）` : ""}！選個遊戲開始玩吧。`
-    : raw.list.length ? `附近有 ${raw.list.length} 家店，但沒有符合「${kw || $("kind").selectedOptions[0].text}」的，換個關鍵字試試。`
+    : raw.list.length ? `附近有 ${raw.list.length} 家店，但沒有符合條件（${[kw, $("kind").value.includes("|") ? "" : $("kind").selectedOptions[0].text, band ? $("price").selectedOptions[0].text.replace(/💰/g, "").trim() : ""].filter(Boolean).join("、")}）的，換個條件試試。`
     : "這附近沒找到店家，試試放大範圍。");
 }
 $("kind").onchange = () => applyFilters(false);
+$("price").onchange = () => applyFilters(false);
 $("keyword").oninput = () => applyFilters(false);
 
 // ---------- 店家清單 ----------
@@ -404,7 +462,7 @@ function metaHTML(s) {
 function renderList() {
   $("count").textContent = shops.length ? `（${shops.length} 家）` : "";
   $("list").innerHTML = shops.length ? shops.map((s, i) => `<li>
-      <div class="info"><div class="name" data-i="${i}">${esc(s.name)}</div><div class="meta">${metaHTML(s)}</div></div>
+      <div class="info"><div class="name" data-i="${i}">${esc(s.name)}${priceHTML(s)}</div><div class="meta">${metaHTML(s)}</div></div>
       ${linksHTML(s)}<button class="del" data-i="${i}" title="移除">✕</button></li>`).join("")
     : `<li class="meta">還沒有店家。搜尋附近店家、自己加，或按「試玩範例店家」。</li>`;
   $("list").querySelectorAll(".name").forEach(el => el.onclick = () => focusShop(shops[+el.dataset.i]));
@@ -416,7 +474,7 @@ function renderMarkers(fit) {
   const geo = shops.filter(s => s.lat != null);
   geo.forEach(s => {
     s.marker = L.marker([s.lat, s.lng]).addTo(shopLayer)
-      .bindPopup(`<b>${esc(s.name)}</b><br><small>${metaHTML(s)}</small>${linksHTML(s)}`);
+      .bindPopup(`<b>${esc(s.name)}</b>${priceHTML(s)}<br><small>${metaHTML(s)}</small>${linksHTML(s)}`);
   });
   if (fit && geo.length) map.fitBounds(L.latLngBounds([center, ...geo.map(s => [s.lat, s.lng])]).pad(0.1));
 }
@@ -431,7 +489,7 @@ function focusShop(s) {
 function addManual(name) {
   name = name.trim();
   if (!name || shops.some(s => s.name === name)) return;
-  shops.push({ name, lat: null, lng: null, kind: "manual", cuisine: "", addr: "", hours: "", d: null });
+  shops.push({ name, lat: null, lng: null, kind: "manual", cuisine: "", addr: "", hours: "", d: null, price: estimatePrice(name, "", "manual") });
 }
 $("add").onclick = () => { addManual($("manual").value); $("manual").value = ""; refresh(false); };
 $("manual").onkeydown = e => { if (e.key === "Enter") $("add").onclick(); };
@@ -460,7 +518,7 @@ function setupGame() { ({ wheel: setupWheel, rev: setupRev, dice: setupDice, car
 function hideResult() { $("result").style.display = "none"; }
 function showResult(s, title) {
   const el = $("result");
-  el.innerHTML = `<h3>${title || "🎉 今天就吃"}：${esc(s.name)}</h3><div class="meta">${metaHTML(s)}</div>${linksHTML(s)}
+  el.innerHTML = `<h3>${title || "🎉 今天就吃"}：${esc(s.name)}${priceHTML(s)}</h3><div class="meta">${metaHTML(s)}</div>${linksHTML(s)}
     ${s.lat != null ? `<div class="links"><a href="#" id="showOnMap">🗺️ 在地圖上看</a></div>` : ""}`;
   el.style.display = "block";
   if ($("showOnMap")) $("showOnMap").onclick = e => { e.preventDefault(); focusShop(s); };
@@ -581,7 +639,7 @@ function drawDie(v) {
 function setupDice() {
   diceShops = pool.slice(0, 6);
   $("diceList").innerHTML = diceShops.length < 2 ? `<li class="meta">先加入至少 2 家店</li>`
-    : diceShops.map((s, i) => `<li data-i="${i}"><b>${FACES[i + 1]}</b><span>${esc(s.name)}</span></li>`).join("");
+    : diceShops.map((s, i) => `<li data-i="${i}"><b>${FACES[i + 1]}</b><span>${esc(s.name)}${priceHTML(s)}</span></li>`).join("");
   $("roll").disabled = diceShops.length < 2;
   drawDie(6);
 }
