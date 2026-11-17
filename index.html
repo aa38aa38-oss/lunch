@@ -14,6 +14,7 @@
     :root { --bg: #1c1712; --card: #2a221b; --ink: #f5ebe0; --muted: #b8a797; --line: #3d3228; --felt: #174f31; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body { margin: 0; background: var(--bg); color: var(--ink);
     font-family: system-ui, -apple-system, "PingFang TC", "Microsoft JhengHei", sans-serif; }
   header { padding: 16px; text-align: center; }
@@ -53,28 +54,46 @@
   .pointer { position: absolute; top: -4px; left: 50%; transform: translateX(-50%);
     border-left: 14px solid transparent; border-right: 14px solid transparent; border-top: 26px solid var(--ink); }
 
-  /* revolver */
-  .rev-wrap { position: relative; width: 280px; height: 280px; margin: 28px auto 0; max-width: 100%; }
-  .rev-wrap .pointer { top: -14px; }
-  .cyl { position: absolute; inset: 0; border-radius: 50%;
-    background: radial-gradient(circle at 35% 30%, #8d949b, #3b4046 70%);
-    box-shadow: inset 0 0 0 6px #2a2e33, 0 6px 18px rgba(0,0,0,.3);
-    transition: transform .45s cubic-bezier(.3,1.4,.5,1); }
-  .cyl.spin { transition: transform 1.6s cubic-bezier(.15,.8,.25,1); }
-  .cyl::after { content: ""; position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px;
-    border-radius: 50%; background: #2a2e33; }
-  .chamber { position: absolute; left: 50%; top: 50%; width: 84px; height: 84px; margin: -42px;
-    border-radius: 50%; background: #1b1e21; box-shadow: inset 0 4px 10px #000;
-    display: flex; align-items: center; justify-content: center; }
-  .chamber span { color: #fff; font-size: .78rem; line-height: 1.2; text-align: center; padding: 4px;
-    word-break: break-all; transition: transform .45s cubic-bezier(.3,1.4,.5,1); }
-  .cyl.spin .chamber span { transition: transform 1.6s cubic-bezier(.15,.8,.25,1); }
-  .chamber.out { background: #555; }
-  .chamber.out span { text-decoration: line-through; opacity: .5; }
-  .chamber.hit { background: var(--accent); box-shadow: 0 0 0 4px var(--accent-2), 0 0 24px var(--accent); }
-  #revMsg { text-align: center; font-size: 1.3rem; font-weight: 700; min-height: 1.6em; margin-top: 10px; }
-  .shake { animation: shake .4s; }
-  @keyframes shake { 0%,100% { transform: translateX(0) } 20%,60% { transform: translateX(-8px) } 40%,80% { transform: translateX(8px) } }
+  /* 籤筒 */
+  .tube-stage { position: relative; width: 220px; height: 270px; margin: 56px auto 0; }
+  .tube-stage.shaking { animation: tubeShake .14s ease-in-out 8 alternate; transform-origin: 50% 100%; }
+  @keyframes tubeShake { from { transform: rotate(-9deg) translateY(-4px) } to { transform: rotate(9deg) translateY(0) } }
+  .sticks { position: absolute; left: 50%; bottom: 60px; width: 120px; height: 200px; margin-left: -60px; }
+  .stick { position: absolute; bottom: 0; width: 9px; height: 190px; margin-left: -4px; border-radius: 3px 3px 1px 1px;
+    background: linear-gradient(90deg, #c9a15b, #f1d58f 45%, #b98c3e); box-shadow: 0 1px 2px rgba(0,0,0,.3);
+    transform-origin: 50% 100%; transition: transform .6s cubic-bezier(.2,1.3,.4,1), filter .3s; }
+  .stick::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 26px; border-radius: 3px 3px 0 0; background: #c92a2a; }
+  .stick.up { filter: drop-shadow(0 0 6px #ffd43b); }
+  .tube { position: absolute; left: 50%; bottom: 0; width: 132px; height: 160px; margin-left: -66px; z-index: 2;
+    border-radius: 10px 10px 18px 18px; background: linear-gradient(90deg, #7a5320, #c99a4b 30%, #e8c27a 50%, #b48434 72%, #6e4818);
+    box-shadow: inset 0 10px 0 rgba(0,0,0,.18), 0 8px 16px rgba(0,0,0,.35);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; color: #4a2f0b; }
+  .tube::before, .tube::after { content: ""; position: absolute; left: 0; right: 0; height: 8px; background: rgba(90,55,15,.55); }
+  .tube::before { top: 34px; } .tube::after { bottom: 30px; }
+  .tube b { font: 700 40px/1 serif; color: #8b1a1a; }
+  .tube small { font-size: .8rem; font-weight: 700; margin-top: 4px; }
+  .draw-ctrl { display: flex; gap: 8px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .slips { display: grid; gap: 8px; margin-top: 14px; }
+  .slip { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 10px;
+    background: linear-gradient(90deg, #f3e2b3, #fbf1d3); color: #3b2a12; border-left: 8px solid #c92a2a;
+    animation: slipIn .45s cubic-bezier(.2,1.3,.4,1) both; }
+  .slip .no { font: 700 1rem/1.4 serif; color: #c92a2a; white-space: nowrap; }
+  .slip .body { flex: 1; min-width: 0; }
+  .slip .nm { font-weight: 700; }
+  .slip .meta { color: #6b5a3c; }
+  .slip .branch { color: #6b5a3c; }
+  .slip .tag { background: #fffaf0; border-color: #d9c48f; color: #6b5a3c; }
+  .slip .links a { color: #3b2a12; border-color: #d9c48f; background: #fffaf0; }
+  .slip .links a.g { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+  @keyframes slipIn { from { opacity: 0; transform: translateY(-30px) scale(.9) } to { opacity: 1; transform: none } }
+
+  /* 搜尋完成引導 */
+  .guide { display: none; margin: 0 0 12px; padding: 10px 12px; border-radius: 12px; text-align: center; font-weight: 700;
+    background: var(--accent); color: #fff; }
+  .guide.on { display: block; animation: guideIn .5s ease both; }
+  @keyframes guideIn { from { opacity: 0; transform: translateY(-8px) } to { opacity: 1; transform: none } }
+  #games.pulse { animation: pulse 1.4s ease 2; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(232,89,12,0) } 50% { box-shadow: 0 0 0 6px rgba(232,89,12,.45) } }
 
   /* dice cup 骰盅 */
   .cup-stage { position: relative; width: 250px; height: 210px; margin: 70px auto 0; max-width: 100%; }
@@ -194,29 +213,34 @@
     <div id="status">提示：也可以直接點地圖設定位置。</div>
   </section>
 
-  <section class="card">
+  <section class="card" id="games">
     <h2>🎲 選餐遊戲</h2>
+    <div class="guide" id="guide"></div>
     <div class="tabs" id="tabs">
-      <button data-g="wheel" class="on">🎡 轉盤</button>
-      <button data-g="rev">🔫 俄羅斯輪盤</button>
-      <button data-g="dice">🎲 骰子</button>
+      <button data-g="draw" class="on">🎋 籤筒</button>
+      <button data-g="wheel">🎡 轉盤</button>
+      <button data-g="dice">🎲 骰盅</button>
       <button data-g="cards">🃏 撲克牌</button>
     </div>
 
-    <div class="game on" id="g-wheel">
+    <div class="game on" id="g-draw">
+      <p class="hint">搜尋到的<b>所有店家</b>都在籤筒裡，搖一搖抽出籤來！</p>
+      <div class="tube-stage" id="tubeStage">
+        <div class="sticks" id="sticks"></div>
+        <div class="tube"><b>籤</b><small id="tubeCount"></small></div>
+      </div>
+      <div class="draw-ctrl">
+        <label>抽 <select id="drawN" aria-label="抽幾支籤"></select> 支籤</label>
+        <button id="drawBtn" class="primary">🎋 搖籤筒</button>
+      </div>
+      <div class="slips" id="slips"></div>
+      <div class="row" id="toWheelRow" hidden><button id="toWheel">🎡 把抽到的店放上轉盤決勝負</button></div>
+    </div>
+
+    <div class="game" id="g-wheel">
       <p class="hint">轉到哪家就吃哪家！</p>
       <div class="wheel-wrap"><div class="pointer"></div><canvas id="wheel" width="720" height="720"></canvas></div>
       <div class="row"><button id="spin" class="primary">開始轉！</button></div>
-    </div>
-
-    <div class="game" id="g-rev">
-      <p class="hint">大家輪流扣扳機：「喀」= 這家淘汰，「砰」= 就吃這家！</p>
-      <div class="rev-wrap"><div class="pointer"></div><div class="cyl" id="cyl"></div></div>
-      <div id="revMsg"></div>
-      <div class="row">
-        <button id="revSpin">🔄 轉彈巢</button>
-        <button id="revFire" class="primary">扣扳機！</button>
-      </div>
     </div>
 
     <div class="game" id="g-dice">
@@ -272,7 +296,13 @@ const CUISINE_ZH = { chinese: "中式 中菜", taiwanese: "台式 台菜", japan
   noodles: "麵", rice: "飯", hot_pot: "火鍋", barbecue: "燒烤", bbq: "燒烤", vegetarian: "素食", vegan: "素食", curry: "咖哩",
   coffee_shop: "咖啡", cake: "蛋糕 甜點", dessert: "甜點", bubble_tea: "手搖飲 飲料", tea: "茶 飲料", sandwich: "三明治",
   breakfast: "早餐 早午餐", brunch: "早午餐", steak_house: "牛排", dumpling: "水餃 餃子", seafood: "海鮮", indian: "印度",
-  american: "美式", french: "法式", western: "西式", chicken: "雞", fried_chicken: "炸雞", beef_bowl: "丼飯 牛丼", donburi: "丼飯" };
+  american: "美式", french: "法式", western: "西式", chicken: "雞", fried_chicken: "炸雞", beef_bowl: "丼飯 牛丼", donburi: "丼飯",
+  roast_chicken: "烤雞", mexican: "墨西哥", spanish: "西班牙", german: "德式", malaysian: "馬來西亞", singaporean: "新加坡",
+  hong_kong: "港式", cantonese: "粵菜 港式", sichuan: "川菜 麻辣", shanghai: "上海菜", regional: "地方菜", local: "在地小吃",
+  asian: "亞洲", international: "異國料理", kebab: "沙威瑪", ice_cream: "冰淇淋", juice: "果汁 飲料", bakery: "麵包",
+  fish: "魚", soup: "湯", porridge: "粥", waffle: "鬆餅", pancake: "鬆餅", crepe: "可麗餅", hotpot: "火鍋", beef: "牛肉",
+  pork: "豬肉", duck: "鴨", tempura: "天婦羅", udon: "烏龍麵", soba: "蕎麥麵", yakiniku: "燒肉", teppanyaki: "鐵板燒",
+  dim_sum: "點心 港式", taiwanese_food: "台式", fusion: "創意料理", salad: "沙拉", healthy: "健康餐", mediterranean: "地中海" };
 // ---------- 每人價位估計 ----------
 // 免費地圖資料沒有價格，這裡依「連鎖店 → 店名關鍵字 → 料理類型 → 店家類型」推估每人平均消費（新台幣）
 const PRICE_RULES = [
@@ -320,7 +350,7 @@ const KIND_LABEL = { restaurant: "餐廳", fast_food: "速食/小吃", cafe: "�
 const DEMO = ["牛肉麵","滷肉飯","日式拉麵","韓式拌飯","麥當勞","越南河粉","咖哩飯","水餃","壽司","便當","義大利麵","泰式打拋豬"];
 
 let center = [25.0478, 121.5170]; // 預設：台北車站
-let shops = [], pool = [], game = "wheel";
+let shops = [], pool = [], game = "draw";
 
 // ---------- 小工具 ----------
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
@@ -421,7 +451,7 @@ async function searchShops() {
   rangeCircle.setRadius(radius);
   const lat = +center[0].toFixed(4), lng = +center[1].toFixed(4);
   const hit = cache.find(c => c.lat === lat && c.lng === lng && c.radius >= radius);
-  if (hit) { setSearching(false); raw = { list: hit.list, radius }; return applyFilters(true); }
+  if (hit) { setSearching(false); raw = { list: hit.list, radius }; applyFilters(true); return guideToGames(shops.length); }
 
   const my = ++searchToken, t0 = Date.now();
   const dLat = radius / 111320, dLng = radius / (111320 * Math.cos(lat * Math.PI / 180));
@@ -456,6 +486,7 @@ async function searchShops() {
   if (!ok) { raw = null; return setStatus("店家資料服務暫時連不上，請稍後再按一次搜尋，或在下方自己加店家。"); }
   cache.push({ lat, lng, radius, list: raw.list });
   applyFilters(false, ((Date.now() - t0) / 1000).toFixed(1));
+  guideToGames(shops.length);
 }
 
 // 咖啡廳、手搖飲料店（有些在地圖上被標成速食店，所以也看料理類型和店名）
@@ -510,8 +541,12 @@ function linksHTML(s) {
     <a class="g" href="${googleLink(s)}" target="_blank" rel="noopener">⭐ Google 評價</a>
     <a href="${navLink(s)}" target="_blank" rel="noopener">🚶 導航過去</a></div>`;
 }
+// 料理類型轉成中文標籤（最多 2 個），例如 fried_chicken → 炸雞
+const cuisineTags = c => [...new Set(c.split(/[;,]/).map(x => x.trim()).filter(Boolean)
+  .map(x => (CUISINE_ZH[x] || "").split(" ")[0] || x.replace(/_/g, " ")))].slice(0, 2)
+  .map(t => `<span class="tag">${esc(t)}</span>`).join("");
 function metaHTML(s) {
-  return `<span class="tag">${KIND_LABEL[s.kind] || esc(s.kind)}</span>${s.cuisine ? `<span class="tag">${esc(s.cuisine)}</span>` : ""}
+  return `<span class="tag">${KIND_LABEL[s.kind] || esc(s.kind)}</span>${cuisineTags(s.cuisine)}
     ${s.d != null ? `約 ${Math.round(s.d)} 公尺` : ""}${s.addr ? " · " + esc(s.addr) : ""}${s.hours ? "<br>營業時間：" + esc(s.hours) : ""}`;
 }
 
@@ -569,7 +604,10 @@ $("tabs").querySelectorAll("button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".game").forEach(g => g.classList.toggle("on", g.id === "g-" + game));
   hideResult(); setupGame();
 });
-function setupGame() { ({ wheel: setupWheel, rev: setupRev, dice: setupDice, cards: setupCards })[game](); }
+function setupGame() {
+  $("shuffle").parentElement.hidden = game === "draw"; // 籤筒用全部店家，不需要換一批
+  ({ draw: setupDraw, wheel: setupWheel, dice: setupDice, cards: setupCards })[game]();
+}
 
 function hideResult() { $("result").style.display = "none"; }
 function showResult(s, title) {
@@ -625,63 +663,70 @@ $("spin").onclick = () => {
   })(t0);
 };
 
-// ---------- 🔫 俄羅斯輪盤 ----------
-let rev = null;
-function setupRev() {
-  const items = pool.slice(0, 6), n = items.length;
-  rev = { items, n, bullet: Math.floor(Math.random() * n), cur: 0, rot: 0, out: new Set(), done: false, turn: 1, busy: false };
-  const cyl = $("cyl"); cyl.className = "cyl"; cyl.style.transform = "rotate(0deg)";
-  cyl.innerHTML = n < 2 ? "" : items.map((s, i) => `<div class="chamber" data-i="${i}"><span>${esc(short(s.name, 8))}</span></div>`).join("");
-  layoutRev();
-  $("revMsg").textContent = n < 2 ? "先加入至少 2 家店" : "子彈已上膛，第 1 位玩家請扣扳機！";
-  $("revFire").disabled = $("revSpin").disabled = n < 2;
-  $("revSpin").textContent = "🔄 轉彈巢";
+// ---------- 🎋 籤筒 ----------
+// 籤筒裡放的是「全部」搜尋到的店家（不是只有一批），可選擇抽幾支
+let drawing = false, drawn = [];
+function setupDraw() {
+  const n = shops.length, prev = +$("drawN").value || 1, max = Math.min(10, n);
+  $("drawN").innerHTML = Array.from({ length: Math.max(1, max) }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join("");
+  $("drawN").value = String(Math.min(prev, Math.max(1, max)));
+  $("tubeCount").textContent = n ? `共 ${n} 支` : "還沒有籤";
+  $("drawBtn").disabled = $("drawN").disabled = n < 1;
+  $("slips").innerHTML = n ? "" : `<p class="meta" style="text-align:center">先搜尋附近店家，或在下方加入店家</p>`;
+  $("toWheelRow").hidden = true;
+  drawn = [];
+  // 畫出籤（最多畫 30 支，太多會擠在一起）
+  const k = Math.min(n, 30);
+  $("sticks").innerHTML = Array.from({ length: k }, (_, i) => {
+    const x = 18 + (k === 1 ? 42 : i * 84 / (k - 1)), rot = (x - 60) / 4 + (Math.random() * 6 - 3), h = 150 + Math.random() * 40;
+    return `<div class="stick" style="left:${x}px;height:${h}px;transform:rotate(${rot}deg)" data-rot="${rot}"></div>`;
+  }).join("");
 }
-function layoutRev() {
-  const step = 360 / rev.n;
-  $("cyl").style.transform = `rotate(${rev.rot}deg)`;
-  $("cyl").querySelectorAll(".chamber").forEach(el => {
-    const a = +el.dataset.i * step;
-    el.style.transform = `rotate(${a}deg) translateY(-88px)`;
-    el.firstChild.style.transform = `rotate(${-(a + rev.rot)}deg)`;
-  });
-}
-$("revSpin").onclick = () => {
-  if (rev.busy) return;
-  const done = rev.done;
-  if (done) { setupRev(); hideResult(); }
-  rev.busy = true;
-  const k = Math.floor(Math.random() * rev.n), step = 360 / rev.n;
-  rev.cur = (rev.cur + k) % rev.n;
-  rev.rot -= 720 + k * step;
-  rev.bullet = Math.floor(Math.random() * rev.n);
-  while (rev.out.has(rev.bullet)) rev.bullet = (rev.bullet + 1) % rev.n;
-  $("cyl").classList.add("spin"); layoutRev();
-  $("revMsg").textContent = "嘩啦啦啦⋯⋯";
-  setTimeout(() => { $("cyl").classList.remove("spin"); rev.busy = false; $("revMsg").textContent = `彈巢轉好了，第 ${rev.turn} 位玩家請扣扳機！`; }, 1600);
-};
-$("revFire").onclick = () => {
-  if (rev.busy || rev.done) return;
-  const i = rev.cur, el = $("cyl").querySelector(`[data-i="${i}"]`);
-  if (i === rev.bullet) {
-    rev.done = true; el.classList.add("hit"); $("revFire").disabled = true;
-    $("g-rev").querySelector(".rev-wrap").classList.add("shake");
-    setTimeout(() => $("g-rev").querySelector(".rev-wrap").classList.remove("shake"), 400);
-    $("revMsg").textContent = `💥 砰！第 ${rev.turn} 位玩家中彈！`;
-    $("revSpin").textContent = "🔄 再玩一次";
-    showResult(rev.items[i], "💥 中彈的店");
-    return;
-  }
-  rev.out.add(i); el.classList.add("out");
-  $("revMsg").textContent = `喀⋯⋯ 沒事！「${short(rev.items[i].name, 10)}」淘汰`;
-  rev.turn++;
-  rev.busy = true;
+$("drawBtn").onclick = () => {
+  if (drawing || !shops.length) return;
+  drawing = true; hideResult();
+  $("drawBtn").disabled = true; $("toWheelRow").hidden = true; $("slips").innerHTML = "";
+  const sticks = [...$("sticks").children];
+  sticks.forEach(st => { st.classList.remove("up"); st.style.transform = `rotate(${st.dataset.rot}deg)`; });
+  const k = Math.min(+$("drawN").value || 1, shops.length);
+  drawn = shuffle(shops).slice(0, k);
+  $("tubeStage").classList.add("shaking");
   setTimeout(() => {
-    do { rev.cur = (rev.cur + 1) % rev.n; rev.rot -= 360 / rev.n; } while (rev.out.has(rev.cur) && rev.cur !== rev.bullet);
-    layoutRev(); rev.busy = false;
-    $("revMsg").textContent += `，換第 ${rev.turn} 位玩家`;
-  }, 700);
+    $("tubeStage").classList.remove("shaking");
+    // 被抽到的籤往上跳出來
+    shuffle(sticks).slice(0, k).forEach(st => {
+      st.classList.add("up");
+      st.style.transform = `rotate(${st.dataset.rot}deg) translateY(-50px)`;
+    });
+    drawn.forEach((s, i) => setTimeout(() => {
+      if (k > 1) $("slips").insertAdjacentHTML("beforeend", `<div class="slip"><div class="no">第${"一二三四五六七八九十"[i]}籤</div>
+        <div class="body"><div class="nm">${esc(s.name)}${branchHTML(s)}${priceHTML(s)}</div><div class="meta">${metaHTML(s)}</div>${linksHTML(s)}</div></div>`);
+      if (i === drawn.length - 1) {
+        drawing = false; $("drawBtn").disabled = false;
+        if (k === 1) showResult(s, "🎋 抽到的籤");
+        else { $("toWheelRow").hidden = false; $("slips").lastElementChild.scrollIntoView({ behavior: "smooth", block: "nearest" }); }
+      }
+    }, 450 + i * 350));
+  }, 1150);
 };
+$("toWheel").onclick = () => {
+  pool = [...drawn];
+  $("tabs").querySelector('[data-g="wheel"]').click();
+  pool = [...drawn]; setupWheel(); // 確保轉盤只放抽到的店
+  $("games").scrollIntoView({ behavior: "smooth", block: "start" });
+};
+
+// 搜尋完成後：把畫面帶到選餐遊戲區
+function guideToGames(n) {
+  if (!n) return;
+  const g = $("guide");
+  g.textContent = `🎉 找到 ${n} 家店！選一個遊戲來決定午餐吧 👇`;
+  g.classList.add("on");
+  setTimeout(() => {
+    $("games").scrollIntoView({ behavior: "smooth", block: "start" });
+    $("games").classList.remove("pulse"); void $("games").offsetWidth; $("games").classList.add("pulse");
+  }, 500);
+}
 
 // ---------- 🎲 骰盅 ----------
 // 三顆骰子總和 3~18，用「(總和 - 1) 除以店家數的餘數」對應店家；6 家時每家機率剛好都是 1/6
