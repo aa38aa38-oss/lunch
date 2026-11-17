@@ -216,7 +216,11 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
+const OVERPASS = [
+  "https://overpass-api.de/api/interpreter",
+  "https://overpass.private.coffee/api/interpreter",
+  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+];
 const COLORS = ["#e8590c","#f59f00","#2f9e44","#1971c2","#9c36b5","#c2255c","#0c8599","#5c940d","#e67700","#3b5bdb","#d6336c","#087f5b"];
 const KIND_LABEL = { restaurant: "餐廳", fast_food: "速食/小吃", cafe: "咖啡廳", food_court: "美食街", manual: "自己加的" };
 const DEMO = ["牛肉麵","滷肉飯","日式拉麵","韓式拌飯","麥當勞","越南河粉","咖哩飯","水餃","壽司","便當","義大利麵","泰式打拋豬"];
@@ -247,12 +251,13 @@ const rangeCircle = L.circle(center, { radius: 500, color: "#e8590c", weight: 1,
 
 function setCenter(latlng, zoom) {
   center = [latlng[0], latlng[1]];
+  raw = null;
   meMarker.setLatLng(center);
   rangeCircle.setLatLng(center).setRadius(+$("radius").value);
   map.setView(center, zoom || map.getZoom());
 }
 map.on("click", e => { setCenter([e.latlng.lat, e.latlng.lng]); setStatus("已設定位置，按「搜尋附近店家」。"); });
-$("radius").onchange = () => rangeCircle.setRadius(+$("radius").value);
+$("radius").onchange = () => { rangeCircle.setRadius(+$("radius").value); if (raw) +$("radius").value <= raw.radius ? applyFilters(false) : searchShops(); };
 
 $("locate").onclick = () => {
   if (!navigator.geolocation) return setStatus("這個瀏覽器不支援定位，請改用輸入地址。");
@@ -282,36 +287,71 @@ $("place").onkeydown = e => { if (e.key === "Enter") geocode(); };
 $("search").onclick = () => searchShops();
 $("keyword").onkeydown = e => { if (e.key === "Enter") searchShops(); };
 
-async function searchShops() {
-  const radius = +$("radius").value, kind = $("kind").value;
-  rangeCircle.setRadius(radius);
-  const q = `[out:json][timeout:25];(nwr["amenity"~"^(${kind})$"]["name"](around:${radius},${center[0]},${center[1]}););out center tags;`;
-  setStatus("搜尋附近店家中…");
-  $("search").disabled = true;
-  let data = null;
-  for (const url of OVERPASS) {
-    try {
-      const r = await fetch(url, { method: "POST", body: "data=" + encodeURIComponent(q) });
-      if (r.ok) { data = await r.json(); break; }
-    } catch {}
-  }
-  $("search").disabled = false;
-  if (!data) return setStatus("店家資料服務忙碌中，請稍後再試，或在下方自己加店家。");
+// 搜尋結果快取：同一位置、同一範圍（或更大範圍）不再重新下載
+const cache = [];
+let raw = null, searchToken = 0;
+const AMENITIES = "restaurant|fast_food|cafe|food_court";
 
-  const kw = $("keyword").value.trim().toLowerCase();
-  const seen = new Set();
-  shops = data.elements.map(e => {
-    const lat = e.lat ?? e.center?.lat, lng = e.lon ?? e.center?.lon, t = e.tags || {};
-    return { name: t["name:zh"] || t.name, lat, lng, kind: t.amenity, cuisine: t.cuisine || "",
-      addr: [t["addr:city"], t["addr:district"], t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(""),
-      hours: t.opening_hours || "", d: dist(center, [lat, lng]) };
-  }).filter(s => s.lat && (!kw || (s.name + s.cuisine).toLowerCase().includes(kw)))
-    .sort((a, b) => a.d - b.d)
-    .filter(s => !seen.has(s.name) && seen.add(s.name));
-
-  refresh(true);
-  setStatus(shops.length ? `找到 ${shops.length} 家店！選個遊戲開始玩吧。` : "這附近沒找到店家，試試放大範圍或換關鍵字。");
+function fetchOverpass(q) {
+  // 同時問所有伺服器，誰先回就用誰，其餘取消
+  const ctrls = OVERPASS.map(() => new AbortController());
+  const timer = setTimeout(() => ctrls.forEach(c => c.abort()), 15000);
+  return Promise.any(OVERPASS.map((url, i) =>
+    fetch(url + "?data=" + encodeURIComponent(q), { signal: ctrls[i].signal }).then(async r => {
+      if (!r.ok) throw new Error(r.status);
+      const d = await r.json();
+      ctrls.forEach((c, j) => j !== i && c.abort());
+      return d;
+    })
+  )).finally(() => clearTimeout(timer));
 }
+
+async function searchShops() {
+  const radius = +$("radius").value;
+  rangeCircle.setRadius(radius);
+  const lat = +center[0].toFixed(4), lng = +center[1].toFixed(4);
+  const hit = cache.find(c => c.lat === lat && c.lng === lng && c.radius >= radius);
+  if (hit) { raw = { list: hit.list, radius }; return applyFilters(true); }
+
+  const my = ++searchToken, t0 = Date.now();
+  $("search").disabled = true;
+  setStatus("搜尋附近店家中…");
+  const tick = setInterval(() => setStatus(`搜尋附近店家中…（${Math.round((Date.now() - t0) / 1000)} 秒）`), 1000);
+  const area = `(around:${radius},${lat},${lng})`, f = `["amenity"~"^(${AMENITIES})$"]["name"]`;
+  const q = `[out:json][timeout:12];(node${f}${area};way${f}${area};);out center tags qt;`;
+  let data = null;
+  try { data = await fetchOverpass(q); } catch {}
+  clearInterval(tick);
+  if (my !== searchToken) return; // 已有更新的搜尋
+  $("search").disabled = false;
+  if (!data) return setStatus("店家資料服務忙碌中，請再按一次搜尋，或在下方自己加店家。");
+
+  const list = data.elements.map(e => {
+    const la = e.lat ?? e.center?.lat, ln = e.lon ?? e.center?.lon, t = e.tags || {};
+    return { name: t["name:zh"] || t.name, lat: la, lng: ln, kind: t.amenity, cuisine: t.cuisine || "",
+      addr: [t["addr:city"], t["addr:district"], t["addr:street"], t["addr:housenumber"]].filter(Boolean).join(""),
+      hours: t.opening_hours || "", d: dist(center, [la, ln]) };
+  }).filter(s => s.lat).sort((a, b) => a.d - b.d);
+  cache.push({ lat, lng, radius, list });
+  raw = { list, radius };
+  applyFilters(true, ((Date.now() - t0) / 1000).toFixed(1));
+}
+
+// 類型、關鍵字、範圍縮小都在本機篩選，不用重新上網搜尋
+function applyFilters(fit, secs) {
+  if (!raw) return;
+  const kind = $("kind").value.split("|"), kw = $("keyword").value.trim().toLowerCase(), radius = +$("radius").value;
+  const seen = new Set();
+  const manual = shops.filter(s => s.kind === "manual");
+  shops = raw.list.filter(s => s.d <= radius && kind.includes(s.kind) && (!kw || (s.name + s.cuisine).toLowerCase().includes(kw)))
+    .filter(s => !seen.has(s.name) && seen.add(s.name))
+    .concat(manual.filter(s => !seen.has(s.name)));
+  refresh(fit);
+  const n = shops.length - manual.length;
+  setStatus(n ? `找到 ${n} 家店${secs ? `（${secs} 秒）` : ""}！選個遊戲開始玩吧。` : "這附近沒找到符合的店家，試試放大範圍或換關鍵字。");
+}
+$("kind").onchange = () => applyFilters(false);
+$("keyword").oninput = () => applyFilters(false);
 
 // ---------- 店家清單 ----------
 function googleLink(s) {
